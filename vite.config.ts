@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   
   return {
+    base: '/',  // Using root path for custom domain
     plugins: [
       react(),
       legacy()

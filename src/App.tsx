@@ -1579,7 +1579,7 @@ const App: React.FC = () => {
       domain={authConfig.domain}
       clientId={authConfig.clientId}
       authorizationParams={{
-        redirect_uri: window.location.origin,
+        redirect_uri: 'https://app.wolf0fdev.me',
         scope: "openid profile email"
       }}
       cacheLocation="localstorage"
