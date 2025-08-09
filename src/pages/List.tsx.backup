@@ -1,0 +1,1407 @@
+import {
+  IonAvatar,
+  IonButton,
+  IonButtons,
+  IonCard,
+  IonCardContent,
+  IonCardHeader,
+  IonCardTitle,
+  IonChip,
+  IonContent,
+  IonDatetime,
+  IonFab,
+  IonFabButton,
+  IonHeader,
+  IonIcon,
+  IonInput,
+  IonItem,
+  IonItemOption,
+  IonItemOptions,
+  IonItemSliding,
+  IonLabel,
+  IonList,
+  IonMenuButton,
+  IonModal,
+  IonPage,
+  IonRefresher,
+  IonRefresherContent,
+  IonSearchbar,
+  IonSegment,
+  IonSegmentButton,
+  IonSelect,
+  IonSelectOption,
+  IonSkeletonText,
+  IonTextarea,
+  IonTitle,
+  IonToolbar,
+  IonReorderGroup,
+  IonReorder,
+  useIonAlert,
+  useIonRouter,
+  useIonToast,
+  useIonViewWillEnter,
+  IonTabBar,
+  IonTabButton,
+  IonToggle,
+} from "@ionic/react";
+import { addOutline, folderOutline, trashBinOutline, reorderThreeOutline, fileTrayFullOutline, musicalNoteOutline, createOutline, analyticsOutline, trashOutline, pinOutline } from "ionicons/icons";
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { getNotes, addNote, updateNote, deleteNote, Note, getFolders, addFolder, Folder, deleteFolder, updateFolder, uploadNoteImage, uploadVoiceMessage } from './apiService';
+import './List.css';
+import handleDrag from "./draggingHandler";
+import { useAuth0 } from '@auth0/auth0-react';
+import { useHistory } from "react-router-dom";
+import { doRefresh, handleAddFolder, handleAddNote, handleDeleteFolder, handleDeleteNote, handleEditFolder, handleEditNote, handleFolderClick, handleUpdateFolder, handleUpdateNote } from "./apiCalls";
+
+// Define a union type for items that can be reordered
+type ReorderableItem = Note | Folder;
+
+// Helper function to determine if an item is a Note
+const isNote = (item: ReorderableItem): item is Note => {
+  return (item as Note).text !== undefined;
+};
+
+// Helper function to determine if an item is a Folder
+const isFolder = (item: ReorderableItem): item is Folder => {
+  return (item as Folder).folder_type !== undefined;
+};
+
+// Interface for drag data
+interface DragData {
+  type: 'note' | 'folder';
+  id: number;
+}
+
+// CSS for drag and drop
+const dragStyles = {
+  folderDropZone: {
+    border: '2px dashed #ccc',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    transition: 'all 0.2s ease',
+    padding: '8px',
+    margin: '4px 0',
+  },
+  folderDropZoneActive: {
+    border: '2px dashed #3880ff',
+    backgroundColor: 'rgba(56, 128, 255, 0.1)',
+  },
+  noteBeingDragged: {
+    opacity: 0.6,
+    transform: 'scale(0.98)',
+  }
+};
+
+const List: React.FC = () => {
+  // State for drag and drop
+  const [draggedItem, setDraggedItem] = useState<DragData | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<number | null>(null);
+  const { user } = useAuth0();
+  const [loading, setLoading] = useState<boolean>(true);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [showAlert] = useIonAlert();
+  const [showToast] = useIonToast();
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
+  const [voiceMessageUrl, setVoiceMessageUrl] = useState<string | undefined>(undefined);
+  const [fileLink, setFileLink] = useState<string | undefined>(undefined);
+  const [calcNumber, setCalcNumber] = useState<number | undefined>(undefined);
+  const [imageFile, setImageFile] = useState<File | undefined>(undefined);
+  const [voiceFile, setVoiceFile] = useState<File | undefined>(undefined);
+  const [noteColor, setNoteColor] = useState<string>('null');
+  const [folderColor, setFolderColor] = useState<string>('null');
+  const [isCrossedOut, setIsCrossedOut] = useState<boolean>(false);
+  const [isChecklistEnabled, setIsChecklistEnabled] = useState<boolean>(false);
+  const modal = useRef<HTMLIonModalElement>(null);
+  const folderModal = useRef<HTMLIonModalElement>(null);
+  const cardModal = useRef<HTMLIonModalElement>(null);
+  const [presentingElement, setPresentingElement] = useState<HTMLIonFabButtonElement | null>(null);
+  const page = useRef(null);
+  const history = useHistory();
+
+  const [activeTab, setActiveTab] = useState<'notes' | 'media' | 'pinboard'>('notes');
+  const [dropdownValue, setDropdownValue] = useState<string>("");
+  const [title, setTitle] = useState('');
+  const [text, setText] = useState('');
+  const [folderName, setFolderName] = useState('');
+  const folderType = dropdownValue === "option2" ? 2 : 1;
+
+  const [modalTab, setModalTab] = useState<'notes' | 'settings' | 'media'>('notes');
+  const [folderModalTab, setFolderModalTab] = useState<'folder' | 'settings'>('folder');
+
+  useEffect(() => {
+    setPresentingElement(page.current);
+  }, []);
+
+  // Consistent sorting function to use throughout the app
+  const sortByYDescending = (a: { y?: number }, b: { y?: number }) => {
+    // Sort by y value in descending order (largest y at top)
+    // Use a large default value for items without y to ensure consistency
+    const aY = a.y !== undefined ? a.y : -9999;
+    const bY = b.y !== undefined ? b.y : -9999;
+    return bY - aY;
+  };
+  
+  useIonViewWillEnter(() => {
+    const fetchData = async () => {
+      if (user && user.sub) {
+        try {
+          const notes = await getNotes(user.sub);
+          const folders = await getFolders(user.sub);
+          const filteredNotes = notes.filter(note => note.folder_id === 0);
+          const filteredFolders = folders.filter(folder => folder.folder_id === 0 && folder.folder_type !== 4);
+
+          // Sort notes and folders using the consistent sorting function
+          filteredNotes.sort(sortByYDescending);
+          filteredFolders.sort(sortByYDescending);
+
+          setNotes(filteredNotes);
+          setFolders(filteredFolders);
+        } catch (error) {
+          console.error('Error fetching data:', error);
+          showToast({
+            message: 'Failed to load notes and folders',
+            duration: 2000,
+            color: 'danger'
+          });
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    fetchData();
+  });
+
+  const getNextY = (): number => {
+    // Get the maximum y value from notes and folders
+    const maxNoteY = notes.length > 0 ? Math.max(...notes.map(note => note.y || 0)) : 0;
+    const maxFolderY = folders.length > 0 ? Math.max(...folders.map(folder => folder.y || 0)) : 0;
+    // Add a larger increment to ensure new items appear at the top
+    return Math.max(maxNoteY, maxFolderY) + 100;
+  };
+  
+  const onAddNote = async () => {
+    const nextY = getNextY();
+    setLoading(true);
+    try {
+      // Create the note with basic fields
+      const newNote = {
+        title,
+        text,
+        color: noteColor === 'null' ? '' : noteColor, // Use empty string instead of null
+        folder_id: 0, // parent folder ID is 0 for root level
+        y: nextY,
+        crossed_out: isCrossedOut,
+        checklist_enabled: isChecklistEnabled,
+        file_link: fileLink,
+        calc_number: calcNumber
+      };
+      
+      // Add the note
+      const addedNote = await addNote(newNote, user?.sub || '', newNote.folder_id || 0);
+      
+      // Upload image if available
+      if (imageFile) {
+        try {
+          await uploadNoteImage(addedNote.id, imageFile, user?.sub || '');
+        } catch (imgError) {
+          console.error('Error uploading image:', imgError);
+          showToast({
+            message: 'Failed to upload image',
+            duration: 2000,
+            color: 'warning'
+          });
+        }
+      }
+      
+      // Upload voice message if available
+      if (voiceFile) {
+        try {
+          await uploadVoiceMessage(addedNote.id, voiceFile, user?.sub || '');
+        } catch (voiceError) {
+          console.error('Error uploading voice message:', voiceError);
+          showToast({
+            message: 'Failed to upload voice message',
+            duration: 2000,
+            color: 'warning'
+          });
+        }
+      }
+      
+      // Update the notes list
+      setNotes(prevNotes => [addedNote, ...prevNotes]);
+      
+      // Clear the form
+      setTitle('');
+      setText('');
+      setNoteColor('light');
+      setIsCrossedOut(false);
+      setIsChecklistEnabled(false);
+      setImageUrl(undefined);
+      setVoiceMessageUrl(undefined);
+      setFileLink(undefined);
+      setCalcNumber(undefined);
+      setImageFile(undefined);
+      setVoiceFile(undefined);
+      setModalTab('notes'); // Reset to notes tab
+      
+      cardModal.current!.dismiss();
+      showToast({
+        message: 'Note added successfully',
+        duration: 2000,
+        color: 'success'
+      });
+    } catch (error) {
+      console.error('Error adding note:', error);
+      showToast({
+        message: 'Failed to add note',
+        duration: 2000,
+        color: 'danger'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onAddFolder = () => {
+    const nextY = getNextY();
+    handleAddFolder(
+      folderName,
+      user,
+      0, // parent folder ID is 0 for root level
+      folderType,
+      1,
+      nextY,
+      showToast,
+      setFolders,
+      setFolderName,
+      () => {
+        setFolderColor('light');
+        setIsCrossedOut(false);
+        folderModal.current!.dismiss();
+      }
+    );
+  };
+
+  const onUpdateNote = () => {
+    if (selectedNote) {
+      const updatedNote = {
+        ...selectedNote,
+        title,
+        text,
+        color: selectedNote.color,
+        crossed_out: selectedNote.crossed_out
+      };
+      handleUpdateNote(updatedNote, user, title, text, setNotes, setSelectedNote, () => {
+        setNoteColor('null');
+        setIsCrossedOut(false);
+        modal.current!.dismiss();
+      });
+    }
+  };
+
+  const onDeleteNote = (id: number) => {
+    handleDeleteNote(id, user, setNotes, setSelectedNote, () => modal.current!.dismiss());
+  };
+
+  const onEditNote = (note: Note) => {
+    setTitle(note.title);
+    setText(note.text);
+    setNoteColor(note.color);
+    setIsCrossedOut(note.crossed_out);
+    setSelectedNote(note);
+  };
+
+  const onEditFolder = (folder: Folder) => {
+    setFolderName(folder.name);
+    setFolderColor(folder.color);
+    setIsCrossedOut(folder.crossed_out);
+    setIsChecklistEnabled(folder.checklist || false);
+    setSelectedFolder(folder);
+    setFolderModalTab('folder');
+    folderModal.current!.present();
+  };
+  
+  const onUpdateFolder = () => {
+    if (selectedFolder) {
+      // Preserve the original folder_type when updating a folder
+      const updatedFolder = {
+        ...selectedFolder,
+        name: folderName,
+        // Keep the original folder_type instead of using the default folderType
+        folder_type: selectedFolder.folder_type,
+        color: folderColor,
+        crossed_out: isCrossedOut,
+        checklist: isChecklistEnabled
+      };
+      
+      console.log('Updating folder, preserving original type:', selectedFolder.folder_type);
+      
+      // Pass the original folder_type to handleUpdateFolder
+      handleUpdateFolder(updatedFolder, user, folderName, selectedFolder.folder_type, setFolders, setSelectedFolder, () => {
+        setFolderColor('null');
+        setIsCrossedOut(false);
+        setIsChecklistEnabled(false);
+        folderModal.current!.dismiss();
+      });
+    }
+  };
+
+  const onDeleteFolder = (id: number) => {
+    handleDeleteFolder(id, user, setFolders);
+    folderModal.current?.dismiss();
+  };
+  
+  // Handle dragging a note
+  const handleNoteDragStart = (e: React.DragEvent, note: Note) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'note', id: note.id }));
+    setDraggedItem({ type: 'note', id: note.id });
+    
+    // Set the drag image (optional)
+    const dragImage = document.createElement('div');
+    dragImage.textContent = note.title || 'Note';
+    dragImage.style.padding = '8px';
+    dragImage.style.background = '#fff';
+    dragImage.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+    dragImage.style.borderRadius = '4px';
+    dragImage.style.position = 'absolute';
+    dragImage.style.top = '-1000px';
+    document.body.appendChild(dragImage);
+    e.dataTransfer.setDragImage(dragImage, 0, 0);
+    
+    setTimeout(() => {
+      document.body.removeChild(dragImage);
+    }, 0);
+  };
+  
+  // Handle dragging over a folder
+  const handleDragOver = (e: React.DragEvent, folderId: number) => {
+    e.preventDefault();
+    setDropTargetId(folderId);
+  };
+  
+  // Handle dragging leaving a folder
+  const handleDragLeave = () => {
+    setDropTargetId(null);
+  };
+  
+  // Handle dropping a note into a folder
+  const handleDrop = async (e: React.DragEvent, targetFolder: Folder) => {
+    e.preventDefault();
+    setDropTargetId(null);
+    
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain')) as DragData;
+      
+      if (data.type === 'note') {
+        const noteId = data.id;
+        const noteToMove = notes.find(note => note.id === noteId);
+        
+        if (noteToMove) {
+          let updatedNote;
+          let targetFolderId = targetFolder.id;
+          let successMessage = `Note moved to ${targetFolder.name}`;
+          
+          // Handle special folder types
+          if (targetFolder.folder_type === 1) {
+            // Standard folder - directly add the note to this folder
+            updatedNote = { ...noteToMove, folder_id: targetFolderId };
+          } 
+          else if (targetFolder.folder_type === 2) {
+            // Organizer folder - we need to handle this case differently
+            // First, fetch all folders to ensure we have the latest data
+            const allFolders = await getFolders(user?.sub || '');
+            const subfolders = allFolders.filter(f => f.folder_id === targetFolder.id);
+            
+            if (subfolders.length > 0) {
+              // Use the first subfolder
+              targetFolderId = subfolders[0].id;
+              updatedNote = { ...noteToMove, folder_id: targetFolderId };
+              successMessage = `Note moved to ${targetFolder.name} (${subfolders[0].name})`;
+              
+              // Update folders state with the latest data
+              setFolders(allFolders.filter(folder => folder.folder_id === 0 && folder.folder_type !== 4));
+            } else {
+              // Create a default subfolder
+              const newSubfolderName = "Default Subfolder";
+              const nextY = getNextY();
+              
+              // Create the subfolder first
+              const subfolder = await addFolder(
+                {
+                  name: newSubfolderName,
+                  folder_type: 1, // standard folder type
+                  y: nextY,
+                  color: 'medium', // default color
+                  crossed_out: false,
+                  checklist: false
+                },
+                user?.sub || '',
+                targetFolder.id // parent folder ID
+              );
+              
+              // Then move the note to the new subfolder
+              targetFolderId = subfolder.id;
+              updatedNote = { ...noteToMove, folder_id: targetFolderId };
+              successMessage = `Note moved to ${targetFolder.name} (${newSubfolderName})`;
+              
+              // Refresh folders to include the new subfolder
+              const updatedFolders = await getFolders(user?.sub || '');
+              setFolders(updatedFolders.filter(folder => folder.folder_id === 0 && folder.folder_type !== 4));
+            }
+          }
+          else if (targetFolder.folder_type === 3) {
+            // Mindmap folder - add note directly
+            // Store the note's position in a separate property or use existing x, y properties
+            updatedNote = { 
+              ...noteToMove, 
+              folder_id: targetFolderId,
+              // Use existing x, y properties for positioning in mindmap
+              x: Math.random() * 500, // Random initial position
+              y: Math.random() * 500
+            };
+          }
+          else {
+            // Default case for other folder types
+            updatedNote = { ...noteToMove, folder_id: targetFolderId };
+          }
+          
+          // Update in the database
+          await updateNote(noteId, updatedNote, user?.sub || '');
+          
+          // Update state
+          setNotes(prevNotes => 
+            prevNotes.map(note => note.id === noteId ? updatedNote : note)
+          );
+          
+          // We don't automatically navigate to the folder view anymore
+          // This allows the user to continue working in the current view
+          
+          showToast({
+            message: successMessage,
+            duration: 2000,
+            color: 'success'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error handling drop:', error);
+      showToast({
+        message: 'Failed to move note',
+        duration: 2000,
+        color: 'danger'
+      });
+    }
+    
+    setDraggedItem(null);
+  };
+  
+  // Handle drag end
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+    setDropTargetId(null);
+  };
+  
+  const onFolderClick = (folder: Folder) => {
+    const encodedName = encodeURIComponent(folder.name);
+    if (folder.folder_type === 1) {
+      history.push(`/app/folder/${encodedName}`);
+    } else if (folder.folder_type === 2) {
+      history.push(`/app/organizerfolder/${encodedName}`);
+    } else if (folder.folder_type === 3) {
+      history.push(`/app/mindmapfolder/${encodedName}`);
+    } else {
+      console.error("Unknown folder type:", folder.folder_type);
+      showToast({
+        message: "Unknown folder type!",
+        duration: 2000,
+        color: "danger"
+      });
+    }
+  };
+
+  const onTurnNoteIntoFolder = (folderType: number) => {
+    if (!selectedNote) {
+      console.error("No note selected!");
+      showToast({
+        message: "No note selected to turn into a folder!",
+        duration: 2000,
+        color: "danger",
+      });
+      return;
+    }
+
+    const folderName = selectedNote.title || "Untitled Folder";
+    // Use the note's existing y-position instead of generating a new one
+    const noteY = selectedNote.y || 0;
+    
+    // Store the note ID to delete after folder creation
+    const noteIdToDelete = selectedNote.id;
+    
+    // Create the folder with the same y-position as the note
+    handleAddFolder(
+      folderName,
+      user,
+      0, // parent folder ID is 0 for root level
+      folderType,
+      1,
+      noteY, // Use the note's y-position
+      showToast,
+      setFolders,
+      setFolderName,
+      () => {
+        // Delete the original note after the folder is created
+        onDeleteNote(noteIdToDelete);
+        folderModal.current!.dismiss();
+      }
+    );
+  };
+
+  const handleDropdownSelection = (selectedValue: string) => {
+    setDropdownValue(selectedValue);
+    if (selectedValue === "option1") {
+      onTurnNoteIntoFolder(1); // Normal Folder
+    } else if (selectedValue === "option2") {
+      onTurnNoteIntoFolder(2); // Organizer Folder
+    } else if (selectedValue === "option3") {
+      onTurnNoteIntoFolder(3); // Mindmap Folder
+    }
+    modal.current?.dismiss();
+  };
+
+  // Combined handler for reordering both notes and folders
+  const handleReorderItems = async (event: CustomEvent) => {
+    try {
+      // Create a combined array of notes and folders
+      const combinedItems: ReorderableItem[] = [];
+      
+      // Only include notes with folder_id === 0 (root level notes)
+      const rootNotes = notes.filter(note => note.folder_id === 0);
+      const rootFolders = folders;
+      
+      // Sort all items by their y position
+      [...rootNotes, ...rootFolders].forEach(item => {
+        combinedItems.push(item);
+      });
+      combinedItems.sort(sortByYDescending);
+      
+      // Get the moved item
+      const movedItem = combinedItems[event.detail.from];
+      
+      // Create a new array without the moved item
+      const newCombinedItems = [...combinedItems];
+      newCombinedItems.splice(event.detail.from, 1);
+      
+      // Insert the moved item at the new position
+      newCombinedItems.splice(event.detail.to, 0, movedItem);
+      
+      // Calculate new positions for all items (largest y at top)
+      const updatedItems = newCombinedItems.map((item, index) => ({
+        ...item,
+        // Assign higher y values to items at the beginning of the array
+        y: newCombinedItems.length - index + 100
+      }));
+      
+      // Separate notes and folders again
+      const updatedNotes: Note[] = [];
+      const updatedFolders: Folder[] = [];
+      
+      updatedItems.forEach(item => {
+        if (isNote(item)) {
+          updatedNotes.push(item);
+        } else if (isFolder(item)) {
+          updatedFolders.push(item);
+        }
+      });
+      
+      // Update state first for immediate UI feedback
+      // Keep notes that aren't at the root level
+      const nonRootNotes = notes.filter(note => note.folder_id !== 0);
+      setNotes([...updatedNotes, ...nonRootNotes]);
+      setFolders(updatedFolders);
+      
+      // Complete the reorder event immediately to improve UI responsiveness
+      event.detail.complete();
+      
+      // Update database in the background without blocking the UI
+      // Only update the moved item and affected items for better performance
+      const updatePromises: Promise<any>[] = [];
+      
+      // Only update items that actually changed position
+      const changedItems = updatedItems.filter((item, index) => {
+        const originalIndex = combinedItems.findIndex(original => 
+          isNote(item) && isNote(original) ? item.id === original.id : 
+          isFolder(item) && isFolder(original) ? item.id === original.id : false
+        );
+        return originalIndex !== index;
+      });
+      
+      // Create update promises for changed items
+      changedItems.forEach(item => {
+        if (isNote(item)) {
+          updatePromises.push(updateNote(item.id, { ...item, y: item.y }, user?.sub || ''));
+        } else if (isFolder(item)) {
+          updatePromises.push(updateFolder(item.id, { ...item, y: item.y }, user?.sub || ''));
+        }
+      });
+      
+      // Execute all updates in parallel
+      Promise.all(updatePromises).catch(error => {
+        console.error('Error updating item positions:', error);
+        showToast({
+          message: 'Failed to save some item positions',
+          duration: 2000,
+          color: 'warning'
+        });
+      });
+    } catch (error) {
+      console.error('Error updating item positions:', error);
+      showToast({
+        message: 'Failed to save item positions',
+        duration: 2000,
+        color: 'danger'
+      });
+      // Revert the reorder if it failed
+      event.detail.complete(false);
+    }
+  };
+
+  const handleTabChange = (tab: 'notes' | 'media') => {
+    if (tab === 'media') {
+      history.push('/app/media');
+    } else {
+      history.push('/app/list');
+    }
+  };
+
+  return (
+    <IonPage ref={page}>
+      <IonHeader>
+        <IonToolbar color={'primary'}>
+          <IonButtons slot="start">
+            <IonMenuButton />
+          </IonButtons>
+          <IonTitle>List</IonTitle>
+        </IonToolbar>
+        <IonToolbar color={'primary'}> <IonSearchbar /> </IonToolbar>
+      </IonHeader>
+      <IonContent>
+        <IonRefresher slot="fixed" onIonRefresh={(ev) => {
+          // Local refresh function
+          const handleRefresh = async (event: CustomEvent) => {
+            try {
+              if (user && user.sub) {
+                const notes = await getNotes(user.sub);
+                const folders = await getFolders(user.sub);
+                const filteredNotes = notes.filter(note => note.folder_id === 0);
+                const filteredFolders = folders.filter(folder => folder.folder_id === 0 && folder.folder_type !== 4);
+
+                // Sort notes and folders using the consistent sorting function
+                filteredNotes.sort(sortByYDescending);
+                filteredFolders.sort(sortByYDescending);
+
+                setNotes(filteredNotes);
+                setFolders(filteredFolders);
+                
+                showToast({
+                  message: 'Refreshed successfully',
+                  duration: 1000,
+                  color: 'success'
+                });
+              }
+            } catch (error) {
+              console.error('Error refreshing data:', error);
+              showToast({
+                message: 'Failed to refresh',
+                duration: 2000,
+                color: 'danger'
+              });
+            } finally {
+              event.detail.complete();
+            }
+          };
+          
+          handleRefresh(ev);
+        }}>
+          <IonRefresherContent></IonRefresherContent>
+        </IonRefresher>
+
+        {activeTab === 'notes' ? (
+          <>
+            {loading && (
+              [...Array(10)].map((_, index) => (
+                <IonCard key={index}>
+                  <IonCardContent>
+                    <IonItem>
+                      <IonAvatar slot="start">
+                        <IonSkeletonText />
+                      </IonAvatar>
+                      <IonLabel>
+                        <IonSkeletonText animated style={{ width: '150px' }} />
+                        <p>
+                          <IonSkeletonText />
+                        </p>
+                      </IonLabel>
+                      <IonChip color="primary" slot="end">
+                      </IonChip>
+                    </IonItem>
+                  </IonCardContent>
+                </IonCard>
+              ))
+            )}
+
+            {/* Combined reorder group for both folders and notes */}
+            <IonReorderGroup disabled={false} onIonItemReorder={handleReorderItems}>
+              {/* Combine and sort folders and notes by y position (descending) */}
+              {[...folders, ...notes.filter(note => note.folder_id === 0)]
+                .sort(sortByYDescending)
+                .map((item) => {
+                  if (isFolder(item)) {
+                    // Render folder
+                    const folder = item;
+                    const isDropTarget = dropTargetId === folder.id;
+                    
+                    return (
+                      <IonItem key={`folder-${folder.id}`}>
+                        <div 
+                          style={{
+                            width: "100%",
+                            ...(isDropTarget ? {...dragStyles.folderDropZone, ...dragStyles.folderDropZoneActive} : {})
+                          }}
+                          onDragOver={(e) => handleDragOver(e, folder.id)}
+                          onDragLeave={handleDragLeave}
+                          onDrop={(e) => handleDrop(e, folder)}
+                        >
+                          <IonCard 
+                            style={{ width: "100%" }} 
+                            onClick={() => onFolderClick(folder)}
+                          >
+                            <IonCardHeader>
+                              <IonCardTitle>
+                                <IonIcon
+                                  icon={
+                                    folder.folder_type === 2
+                                      ? fileTrayFullOutline
+                                      : folder.folder_type === 3
+                                      ? analyticsOutline
+                                      : folderOutline
+                                  }
+                                  style={{ fontSize: "2em", marginRight: "8px" }} 
+                                />
+                                <span style={{ 
+                                  textDecoration: folder.crossed_out ? 'line-through' : 'none',
+                                  color: `var(--ion-color-${folder.color})`
+                                }}>
+                                  {folder.name}
+                                </span>
+                              </IonCardTitle>
+                            </IonCardHeader>
+                            <IonCardContent>
+                              <IonButton onClick={(e) => { e.stopPropagation(); onEditFolder(folder); }}>
+                                Edit Folder
+                              </IonButton>
+                            </IonCardContent>
+                          </IonCard>
+                        </div>
+                        <IonReorder slot="end">
+                          <IonIcon icon={reorderThreeOutline} style={{ fontSize: "1.5em", cursor: "grab" }} />
+                        </IonReorder>
+                      </IonItem>
+                    );
+                  } else if (isNote(item)) {
+                    // Render note
+                    const note = item;
+                    const isBeingDragged = draggedItem?.type === 'note' && draggedItem.id === note.id;
+                    
+                    return (
+                      <IonItemSliding key={`note-${note.id}`} ref={(el) => handleDrag(el, () => onDeleteNote(note.id))}>
+                        <IonItemOptions side="end">
+                          <IonItemOption color="danger" onClick={() => onDeleteNote(note.id)}>
+                            <IonIcon slot="icon-only" icon={trashBinOutline} />
+                          </IonItemOption>
+                        </IonItemOptions>
+                        <IonItem>
+                          <div 
+                            draggable 
+                            onDragStart={(e) => handleNoteDragStart(e, note)}
+                            onDragEnd={handleDragEnd}
+                            style={{
+                              width: "100%",
+                              cursor: "grab",
+                              ...(isBeingDragged ? dragStyles.noteBeingDragged : {})
+                            }}
+                          >
+                            <IonCard style={{ width: "100%" }} onClick={() => onEditNote(note)}>
+                              <IonCardHeader>
+                                <IonCardTitle>
+                                  <span style={{ 
+                                    textDecoration: note.crossed_out ? 'line-through' : 'none',
+                                    color: `var(--ion-color-${note.color})`
+                                  }}>
+                                    {note.title}
+                                  </span>
+                                </IonCardTitle>
+                                <IonCardContent>
+                                  <IonLabel>
+                                    <p style={{ 
+                                      textDecoration: note.crossed_out ? 'line-through' : 'none',
+                                      color: `var(--ion-color-${note.color})`
+                                    }}>
+                                      {note.text}
+                                    </p>
+                                  </IonLabel>
+                                </IonCardContent>
+                              </IonCardHeader>
+                            </IonCard>
+                          </div>
+                          <IonReorder slot="end">
+                            <IonIcon icon={reorderThreeOutline} style={{ fontSize: "1.5em", cursor: "grab" }} />
+                          </IonReorder>
+                        </IonItem>
+                      </IonItemSliding>
+                    );
+                  }
+                  return null;
+                })
+              }
+            </IonReorderGroup>
+
+            <IonFab vertical="bottom" horizontal="start" slot="fixed">
+              <IonFabButton onClick={() => {
+                setTitle('');
+                setText('');
+                cardModal.current?.present();
+              }}>
+                <IonIcon icon={addOutline} />
+              </IonFabButton>
+            </IonFab>
+          </>
+        ) : (
+          <IonCard style={{ margin: '16px' }}>
+            <IonCardHeader>
+              <IonCardTitle>Media Library</IonCardTitle>
+            </IonCardHeader>
+            <IonCardContent>
+              <IonButton expand="block" onClick={() => history.push('/app/media')}>
+                <IonIcon icon={musicalNoteOutline} slot="start" />
+                Open Media Folder
+              </IonButton>
+            </IonCardContent>
+          </IonCard>
+        )}
+
+        <IonModal 
+          ref={modal} 
+          isOpen={selectedNote !== null} 
+          onDidDismiss={() => setSelectedNote(null)}
+          presentingElement={presentingElement!}
+        >
+          <IonHeader>
+            <IonToolbar>
+              <IonButtons slot="start">
+                <IonButton onClick={() => modal.current!.dismiss()}>Close</IonButton>
+              </IonButtons>
+              <IonTitle>Edit Note</IonTitle>
+            </IonToolbar>
+            <IonToolbar>
+              <IonSegment value={modalTab} onIonChange={(e) => setModalTab(e.detail.value as 'notes' | 'settings' | 'media')}>
+                <IonSegmentButton value="notes">Notes</IonSegmentButton>
+                <IonSegmentButton value="media">Media</IonSegmentButton>
+                <IonSegmentButton value="settings">Settings</IonSegmentButton>
+              </IonSegment>
+            </IonToolbar>
+          </IonHeader>
+          <IonContent className="ion-padding">
+            {modalTab === 'notes' && (
+              <>
+                <IonItem>
+                  <IonLabel position="stacked">Title</IonLabel>
+                  <IonInput value={title} onIonChange={(e) => setTitle(e.detail.value!)} />
+                </IonItem>
+                <IonItem>
+                  <IonLabel position="stacked">Text</IonLabel>
+                  <IonTextarea value={text} onIonChange={(e) => setText(e.detail.value!)} />
+                </IonItem>
+                <IonButton expand="block" onClick={onUpdateNote}>Update Note</IonButton>
+                <IonButton expand="block" color="danger" onClick={() => onDeleteNote(selectedNote!.id)}>Delete Note</IonButton>
+              </>
+            )}
+            {modalTab === 'media' && (
+              <>
+                <IonItem>
+                  <IonLabel position="stacked">Image</IonLabel>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const files = e.target.files;
+                      if (files && files.length > 0) {
+                        setImageFile(files[0]);
+                        // Create a preview URL
+                        setImageUrl(URL.createObjectURL(files[0]));
+                      }
+                    }}
+                  />
+                </IonItem>
+                {imageUrl && (
+                  <div className="image-preview" style={{ marginTop: '10px', textAlign: 'center' }}>
+                    <img 
+                      src={imageUrl} 
+                      alt="Preview" 
+                      style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain' }} 
+                    />
+                  </div>
+                )}
+                
+                <IonItem>
+                  <IonLabel position="stacked">Voice Message</IonLabel>
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    onChange={(e) => {
+                      const files = e.target.files;
+                      if (files && files.length > 0) {
+                        setVoiceFile(files[0]);
+                        // Create a preview URL
+                        setVoiceMessageUrl(URL.createObjectURL(files[0]));
+                      }
+                    }}
+                  />
+                </IonItem>
+                {voiceMessageUrl && (
+                  <div className="audio-preview" style={{ marginTop: '10px', textAlign: 'center' }}>
+                    <audio controls>
+                      <source src={voiceMessageUrl || ''} />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </div>
+                )}
+                
+                <IonItem>
+                  <IonLabel position="stacked">File Link</IonLabel>
+                  <IonInput 
+                    value={selectedNote?.file_link || fileLink || ''} 
+                    onIonChange={(e) => setFileLink(e.detail.value!)}
+                    placeholder="Enter URL to external file"
+                  />
+                </IonItem>
+                
+                <IonItem>
+                  <IonLabel position="stacked">Calculation Number</IonLabel>
+                  <IonInput 
+                    type="number" 
+                    value={(selectedNote?.calc_number !== null && selectedNote?.calc_number !== undefined) ? selectedNote?.calc_number.toString() : (calcNumber !== undefined ? calcNumber.toString() : '')} 
+                    onIonChange={(e) => {
+                      const value = e.detail.value;
+                      if (value !== undefined && value !== '') {
+                        setCalcNumber(parseFloat(value));
+                      } else {
+                        setCalcNumber(undefined);
+                      }
+                    }}
+                    placeholder="Enter numerical value"
+                  />
+                </IonItem>
+                
+                <IonButton 
+                  expand="block" 
+                  onClick={async () => {
+                    if (!selectedNote) return;
+                    
+                    try {
+                      // First update the note with text fields
+                      const updatedNote = { 
+                        ...selectedNote,
+                        file_link: fileLink,
+                        calc_number: calcNumber
+                      };
+                      
+                      await updateNote(selectedNote.id, updatedNote, user?.sub || '');
+                      
+                      // Upload image if selected
+                      if (imageFile) {
+                        await uploadNoteImage(selectedNote.id, imageFile, user?.sub || '');
+                      }
+                      
+                      // Upload voice message if selected
+                      if (voiceFile) {
+                        await uploadVoiceMessage(selectedNote.id, voiceFile, user?.sub || '');
+                      }
+                      
+                      // Update the notes list
+                      setNotes(prevNotes => 
+                        prevNotes.map(n => n.id === selectedNote.id ? updatedNote : n)
+                      );
+                      
+                      setSelectedNote(updatedNote);
+                      
+                      showToast({
+                        message: 'Media saved successfully',
+                        duration: 2000,
+                        color: 'success'
+                      });
+                    } catch (error) {
+                      console.error('Error saving media:', error);
+                      showToast({
+                        message: 'Failed to save media',
+                        duration: 2000,
+                        color: 'danger'
+                      });
+                    }
+                  }}
+                >
+                  Save Media
+                </IonButton>
+              </>
+            )}
+            {modalTab === 'settings' && (
+              <div style={{ marginTop: "16px" }}>
+                <IonItem>
+                  <IonLabel>Color</IonLabel>
+                  <IonSelect value={selectedNote?.color || 'medium'} onIonChange={e => {
+                    if (selectedNote) {
+                      const updatedNote = { 
+                        ...selectedNote, 
+                        color: e.detail.value === 'white' ? null : e.detail.value,
+                        crossed_out: selectedNote.crossed_out
+                      };
+                      updateNote(selectedNote.id, updatedNote, user?.sub || '')
+                        .then(() => {
+                          setNotes(prevNotes => 
+                            prevNotes.map(n => n.id === selectedNote.id ? updatedNote : n)
+                          );
+                          setSelectedNote(updatedNote);
+                        });
+                    }
+                  }}>
+                    <IonSelectOption value="white">White</IonSelectOption>
+                    <IonSelectOption value="primary">Primary</IonSelectOption>
+                    <IonSelectOption value="secondary">Secondary</IonSelectOption>
+                    <IonSelectOption value="tertiary">Tertiary</IonSelectOption>
+                    <IonSelectOption value="success">Success</IonSelectOption>
+                    <IonSelectOption value="warning">Warning</IonSelectOption>
+                    <IonSelectOption value="danger">Danger</IonSelectOption>
+                    <IonSelectOption value="light">Light</IonSelectOption>
+                    <IonSelectOption value="medium">Medium</IonSelectOption>
+                    <IonSelectOption value="dark">Dark</IonSelectOption>
+                  </IonSelect>
+                </IonItem>
+                <IonItem>
+                  <IonLabel>Cross Out Note</IonLabel>
+                  <IonToggle
+                    checked={selectedNote?.crossed_out || false}
+                    onIonChange={e => {
+                      if (selectedNote) {
+                        const updatedNote = { 
+                          ...selectedNote, 
+                          crossed_out: e.detail.checked,
+                          color: selectedNote.color
+                        };
+                        updateNote(selectedNote.id, updatedNote, user?.sub || '')
+                          .then(() => {
+                            setNotes(prevNotes => 
+                              prevNotes.map(n => n.id === selectedNote.id ? updatedNote : n)
+                            );
+                            setSelectedNote(updatedNote);
+                          });
+                      }
+                    }}
+                  />
+                </IonItem>
+                <IonSelect
+                  value={dropdownValue}
+                  placeholder="Select an option"
+                  onIonChange={(e) => {
+                    const selectedValue = e.detail.value;
+                    setDropdownValue(selectedValue);
+                    if (selectedValue === "option1") {
+                      onTurnNoteIntoFolder(1);
+                    } else if (selectedValue === "option2") {
+                      onTurnNoteIntoFolder(2);
+                    } else if (selectedValue === "option3") {
+                      onTurnNoteIntoFolder(3);
+                    }
+                    modal.current?.dismiss();
+                  }}
+                >
+                  <IonSelectOption value="option1">Turn Note into Normal Folder</IonSelectOption>
+                  <IonSelectOption value="option2">Turn Note into Organizer Folder</IonSelectOption>
+                  <IonSelectOption value="option3">Turn Note into Mindmap Folder</IonSelectOption>
+                </IonSelect>
+              </div>
+            )}
+          </IonContent>
+        </IonModal>
+
+        <IonModal 
+          ref={cardModal} 
+          presentingElement={presentingElement!}
+          onDidDismiss={() => {
+            setTitle('');
+            setText('');
+            setImageUrl(undefined);
+            setVoiceMessageUrl(undefined);
+            setFileLink(undefined);
+            setCalcNumber(undefined);
+            setImageFile(undefined);
+            setVoiceFile(undefined);
+            setModalTab('notes');
+          }}
+        >
+          <IonHeader>
+            <IonToolbar>
+              <IonButtons slot="start">
+                <IonButton onClick={() => cardModal.current!.dismiss()}>Close</IonButton>
+              </IonButtons>
+              <IonTitle>Add Note</IonTitle>
+            </IonToolbar>
+            <IonToolbar>
+              <IonSegment value={modalTab} onIonChange={(e) => setModalTab(e.detail.value as 'notes' | 'settings' | 'media')}>
+                <IonSegmentButton value="notes">Notes</IonSegmentButton>
+                <IonSegmentButton value="media">Media</IonSegmentButton>
+              </IonSegment>
+            </IonToolbar>
+          </IonHeader>
+          <IonContent className="ion-padding">
+            {modalTab === 'notes' && (
+              <>
+                <IonItem>
+                  <IonLabel position="stacked">Title</IonLabel>
+                  <IonInput value={title} onIonChange={(e) => setTitle(e.detail.value!)} />
+                </IonItem>
+                <IonItem>
+                  <IonLabel position="stacked">Text</IonLabel>
+                  <IonTextarea value={text} onIonChange={(e) => setText(e.detail.value!)} />
+                </IonItem>
+                <IonButton expand="block" onClick={onAddNote}>Add Note</IonButton>
+              </>
+            )}
+            {modalTab === 'media' && (
+              <>
+                <IonItem>
+                  <IonLabel position="stacked">Image</IonLabel>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const files = e.target.files;
+                      if (files && files.length > 0) {
+                        setImageFile(files[0]);
+                        // Create a preview URL
+                        setImageUrl(URL.createObjectURL(files[0]));
+                      }
+                    }}
+                  />
+                </IonItem>
+                {imageUrl && (
+                  <div className="image-preview" style={{ marginTop: '10px', textAlign: 'center' }}>
+                    <img 
+                      src={imageUrl || ''} 
+                      alt="Preview" 
+                      style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain' }} 
+                    />
+                  </div>
+                )}
+                
+                <IonItem>
+                  <IonLabel position="stacked">Voice Message</IonLabel>
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    onChange={(e) => {
+                      const files = e.target.files;
+                      if (files && files.length > 0) {
+                        setVoiceFile(files[0]);
+                        // Create a preview URL
+                        setVoiceMessageUrl(URL.createObjectURL(files[0]));
+                      }
+                    }}
+                  />
+                </IonItem>
+                {voiceMessageUrl && (
+                  <div className="audio-preview" style={{ marginTop: '10px', textAlign: 'center' }}>
+                    <audio controls>
+                      <source src={voiceMessageUrl || ''} />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </div>
+                )}
+                
+                <IonItem>
+                  <IonLabel position="stacked">File Link</IonLabel>
+                  <IonInput 
+                    value={fileLink || ''} 
+                    onIonChange={(e) => setFileLink(e.detail.value!)}
+                    placeholder="Enter URL to external file"
+                  />
+                </IonItem>
+                
+                <IonItem>
+                  <IonLabel position="stacked">Calculation Number</IonLabel>
+                  <IonInput 
+                    type="number" 
+                    value={calcNumber !== undefined ? calcNumber.toString() : ''} 
+                    onIonChange={(e) => {
+                      const value = e.detail.value;
+                      if (value !== undefined && value !== '') {
+                        setCalcNumber(parseFloat(value));
+                      } else {
+                        setCalcNumber(undefined);
+                      }
+                    }}
+                    placeholder="Enter numerical value"
+                  />
+                </IonItem>
+                
+                <IonButton 
+                  expand="block" 
+                  onClick={onAddNote}
+                  style={{ marginTop: '16px' }}
+                >
+                  Add Note with Media
+                </IonButton>
+              </>
+            )}
+          </IonContent>
+        </IonModal>
+
+        <IonModal 
+          ref={folderModal} 
+          isOpen={selectedFolder !== null} 
+          onDidDismiss={() => {
+            setSelectedFolder(null);
+            setFolderName('');
+            setFolderColor('null');
+            setIsCrossedOut(false);
+            setIsChecklistEnabled(false);
+            setFolderModalTab('folder');
+          }}
+          presentingElement={presentingElement!}
+        >
+          <IonHeader>
+            <IonToolbar>
+              <IonButtons slot="start">
+                <IonButton onClick={() => folderModal.current!.dismiss()}>Close</IonButton>
+              </IonButtons>
+              <IonTitle>{selectedFolder ? 'Edit Folder' : 'Add Folder'}</IonTitle>
+            </IonToolbar>
+            <IonToolbar>
+              <IonSegment value={folderModalTab} onIonChange={(e) => setFolderModalTab(e.detail.value as 'folder' | 'settings')}>
+                <IonSegmentButton value="folder">Folder</IonSegmentButton>
+                <IonSegmentButton value="settings">Settings</IonSegmentButton>
+              </IonSegment>
+            </IonToolbar>
+          </IonHeader>
+          <IonContent className="ion-padding">
+            {folderModalTab === 'folder' && (
+              <>
+                <IonItem>
+                  <IonLabel position="stacked">Folder Name</IonLabel>
+                  <IonInput value={folderName} onIonChange={(e) => setFolderName(e.detail.value!)} />
+                </IonItem>
+                <IonButton expand="block" onClick={selectedFolder ? onUpdateFolder : onAddFolder}>
+                  {selectedFolder ? 'Update Folder' : 'Add Folder'}
+                </IonButton>
+                {selectedFolder && (
+                  <IonButton expand="block" color="danger" onClick={() => onDeleteFolder(selectedFolder.id)}>
+                    Delete Folder
+                  </IonButton>
+                )}
+              </>
+            )}
+            {folderModalTab === 'settings' && selectedFolder && (
+              <div style={{ marginTop: "16px" }}>
+                <IonItem>
+                  <IonLabel>Color</IonLabel>
+                  <IonSelect value={folderColor} onIonChange={(e) => {
+                    setFolderColor(e.detail.value);
+                    if (selectedFolder) {
+                      const updatedFolder = {
+                        ...selectedFolder,
+                        color: e.detail.value === 'white' ? null : e.detail.value,
+                        crossed_out: isCrossedOut,
+                        checklist: isChecklistEnabled
+                      };
+                      handleUpdateFolder(updatedFolder, user, folderName, folderType, setFolders, setSelectedFolder, () => {
+                        folderModal.current!.dismiss();
+                      });
+                    }
+                  }}>
+                    <IonSelectOption value="white">White</IonSelectOption>
+                    <IonSelectOption value="primary">Primary</IonSelectOption>
+                    <IonSelectOption value="secondary">Secondary</IonSelectOption>
+                    <IonSelectOption value="tertiary">Tertiary</IonSelectOption>
+                    <IonSelectOption value="success">Success</IonSelectOption>
+                    <IonSelectOption value="warning">Warning</IonSelectOption>
+                    <IonSelectOption value="danger">Danger</IonSelectOption>
+                    <IonSelectOption value="light">Light</IonSelectOption>
+                    <IonSelectOption value="medium">Medium</IonSelectOption>
+                    <IonSelectOption value="dark">Dark</IonSelectOption>
+                  </IonSelect>
+                </IonItem>
+                <IonItem>
+                  <IonLabel>Crossed Out</IonLabel>
+                  <IonToggle 
+                    checked={isCrossedOut} 
+                    onIonChange={(e) => {
+                      setIsCrossedOut(e.detail.checked);
+                      if (selectedFolder) {
+                        const updatedFolder = {
+                          ...selectedFolder,
+                          crossed_out: e.detail.checked,
+                          color: folderColor,
+                          checklist: isChecklistEnabled
+                        };
+                        handleUpdateFolder(updatedFolder, user, folderName, folderType, setFolders, setSelectedFolder, () => {
+                          folderModal.current!.dismiss();
+                        });
+                      }
+                    }} 
+                  />
+                </IonItem>
+                <IonItem>
+                  <IonLabel>Enable Checkboxes</IonLabel>
+                  <IonToggle 
+                    checked={isChecklistEnabled} 
+                    onIonChange={(e) => {
+                      setIsChecklistEnabled(e.detail.checked);
+                      if (selectedFolder) {
+                        const updatedFolder = {
+                          ...selectedFolder,
+                          checklist: e.detail.checked,
+                          color: folderColor,
+                          crossed_out: isCrossedOut
+                        };
+                        handleUpdateFolder(updatedFolder, user, folderName, folderType, setFolders, setSelectedFolder, () => {
+                          folderModal.current!.dismiss();
+                        });
+                      }
+                    }} 
+                  />
+                </IonItem>
+              </div>
+            )}
+          </IonContent>
+        </IonModal>
+      </IonContent>
+      <IonTabBar>
+        <IonTabButton tab="notes" selected={activeTab === 'notes'} onClick={() => history.push('/app/list')}>
+          <IonIcon icon={folderOutline} />
+          <IonLabel>Notes</IonLabel>
+        </IonTabButton>
+        <IonTabButton tab="media" selected={activeTab === 'media'} onClick={() => history.push('/app/media/downloaded')}>
+          <IonIcon icon={musicalNoteOutline} />
+          <IonLabel>Media</IonLabel>
+        </IonTabButton>
+        <IonTabButton tab="pinboard" selected={activeTab === 'pinboard'} onClick={() => history.push('/app/pinboard')}>
+          <IonIcon icon={pinOutline} />
+          <IonLabel>Pinboard</IonLabel>
+        </IonTabButton>
+      </IonTabBar>
+    </IonPage>
+  );
+};
+
+export default List;

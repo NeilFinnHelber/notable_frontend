@@ -1,0 +1,577 @@
+ion-item:hover {
+    --background: var(--ion-item-hover-background, var(--ion-color-primary-shade));
+    --color: var(--ion-color-);
+}
+
+/* Card backgrounds for notes and folders */
+
+
+ion-item {
+   --padding-start: 20px;
+}
+
+/* Note and folder backgrounds */
+.note-card, .folder-card {
+  background: var(--notable-note-bg, #e0e7ef) !important;
+  transition: all 0.2s;
+}
+.folder-card {
+  background: var(--notable-folder-bg, #d4e3ff) !important;
+}
+
+/* Hover effects based on theme */
+.note-card:hover, .folder-card:hover {
+  background: var(--notable-hoverBg, #e6f0ff) !important;
+  /* Optionally, add a subtle shadow or border for hover */
+  box-shadow: 0 2px 8px var(--notable-overlay, rgba(0,0,0,0.05));
+}
+
+/* Theme-specific hover colors */
+body[data-theme='redFox'] .note-card:hover, 
+body[data-theme='redFox'] .folder-card:hover {
+  background: var(--notable-hoverBg, #F0BB78) !important;
+  color: #000000 !important;
+}
+
+body[data-theme='arcticFox'] .note-card:hover, 
+body[data-theme='arcticFox'] .folder-card:hover {
+  background: var(--notable-hoverBg, #e6f0ff) !important;
+  color: #000000 !important;
+}
+
+body[data-theme='corsacFox'] .note-card:hover, 
+body[data-theme='corsacFox'] .folder-card:hover {
+  background: var(--notable-hoverBg, #393E46) !important;
+  color: #DFD0B8 !important;
+}
+
+body[data-theme='darkFox'] .note-card:hover, 
+body[data-theme='darkFox'] .folder-card:hover {
+  background: var(--notable-hoverBg, #2a2a4a) !important;
+  color: #f3f4f6 !important;
+}
+
+/* Pulse animation for co-worker folder update indicators */
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(var(--ion-color-primary-rgb), 0.7);
+  }
+  
+  70% {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 5px rgba(var(--ion-color-primary-rgb), 0);
+  }
+  
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(var(--ion-color-primary-rgb), 0);
+  }
+}
+
+/* Pulse animation for co-worker folder update indicators */
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(var(--ion-color-primary-rgb), 0.7);
+  }
+  
+  70% {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 5px rgba(var(--ion-color-primary-rgb), 0);
+  }
+  
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(var(--ion-color-primary-rgb), 0);
+  }
+}
+
+/* Default: use theme variable for text/icons */
+.note-card,
+.folder-card,
+.note-card ion-icon,
+.folder-card ion-icon {
+  color: var(--notable-text, #18181b) !important;
+}
+
+/* Sidebar icons */
+.sidebar-icon {
+  color: var(--notable-text, #18181b) !important;
+}
+
+/* Ensure edit folder button text is always white */
+.folder-card ion-button {
+  --color: white !important;
+  --color-hover: white !important;
+  --color-activated: white !important;
+  --color-focused: white !important;
+}
+
+.folder-card ion-button::part(native) {
+  color: white !important;
+}
+
+.folder-card ion-button .button-inner {
+  color: white !important;
+}
+
+/* Target the button text directly */
+.folder-card ion-button span {
+  color: white !important;
+}
+
+/* Note text and folder title */
+.note-card .note-text,
+.folder-card .folder-title {
+  color: var(--notable-text, #18181b) !important;
+}
+
+/* Force colored note/folder title to always use inline color */
+.colored-note-title, .colored-folder-title {
+  color: inherit !important;
+}
+
+/* Apply black text to null/standard notes and folders in all themes except Corsac Fox and Dark Fox */
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) .note-card[style*="color: var(--ion-color-medium)"],
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) .note-card[style*="color: var(--ion-color-light)"],
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) .note-card[style*="color:var(--ion-color-medium)"],
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) .note-card[style*="color:var(--ion-color-light)"],
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) .folder-card[style*="color: var(--ion-color-medium)"],
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) .folder-card[style*="color: var(--ion-color-light)"],
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) .folder-card[style*="color:var(--ion-color-medium)"],
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) .folder-card[style*="color:var(--ion-color-light)"] {
+  color: #000000 !important;
+}
+
+/* Apply black text to standard notes and folders in all themes except Corsac Fox and Dark Fox */
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) .note-card:not([style*="color:"]),
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) .folder-card:not([style*="color:"]),
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) .note-card:not([style*="color:"]) ion-icon,
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) .folder-card:not([style*="color:"]) ion-icon {
+  color: #000000 !important;
+}
+
+/* Force white text for standard notes and folders in dark theme */
+body[data-theme='darkFox'] .note-card:not([style*="color:"]),
+body[data-theme='darkFox'] .folder-card:not([style*="color:"]),
+body[data-theme='darkFox'] .note-card:not([style*="color:"]) ion-icon,
+body[data-theme='darkFox'] .folder-card:not([style*="color:"]) ion-icon {
+  color: #f3f4f6 !important;
+}
+
+/* Corsac Fox theme - keep original theme colors for null/standard notes and folders */
+body[data-theme='corsacFox'] .note-card:not([style*="color:"]),
+body[data-theme='corsacFox'] .folder-card:not([style*="color:"]),
+body[data-theme='corsacFox'] .note-card:not([style*="color:"]) ion-icon,
+body[data-theme='corsacFox'] .folder-card:not([style*="color:"]) ion-icon {
+  color: #222831 !important; /* Corsac Fox text color */
+}
+
+/* Force black text for notes and folders in redFox and arcticFox (white fox) themes */
+body[data-theme='redFox'] .note-card,
+body[data-theme='redFox'] .folder-card,
+body[data-theme='redFox'] .note-card ion-icon,
+body[data-theme='redFox'] .folder-card ion-icon,
+body[data-theme='redFox'] .note-card .note-text,
+body[data-theme='redFox'] .folder-card .folder-title,
+body[data-theme='arcticFox'] .note-card,
+body[data-theme='arcticFox'] .folder-card,
+body[data-theme='arcticFox'] .note-card ion-icon,
+body[data-theme='arcticFox'] .folder-card ion-icon,
+body[data-theme='arcticFox'] .note-card .note-text,
+body[data-theme='arcticFox'] .folder-card .folder-title {
+  color: #000000 !important;
+}
+
+/* Apply theme-specific colors to standard notes and folders */
+body[data-theme='redFox'] .note-card[style*="color: null"],
+body[data-theme='redFox'] .folder-card[style*="color: null"],
+body[data-theme='redFox'] .note-card:not([style*="color:"]),
+body[data-theme='redFox'] .folder-card:not([style*="color:"]),
+body[data-theme='arcticFox'] .note-card[style*="color: null"],
+body[data-theme='arcticFox'] .folder-card[style*="color: null"],
+body[data-theme='arcticFox'] .note-card:not([style*="color:"]),
+body[data-theme='arcticFox'] .folder-card:not([style*="color:"]) {
+  color: #000000 !important;
+}
+
+/* Ensure text elements within notes and folders also get the right color */
+body[data-theme='redFox'] .note-card .note-text,
+body[data-theme='redFox'] .folder-card .folder-title,
+body[data-theme='arcticFox'] .note-card .note-text,
+body[data-theme='arcticFox'] .folder-card .folder-title {
+  color: #000000 !important;
+}
+
+/* Standard note text color based on theme */
+.standard-note-text {
+  color: inherit;
+}
+
+body[data-theme='redFox'] .standard-note-text,
+body[data-theme='arcticFox'] .standard-note-text {
+  color: #000000 !important;
+}
+
+body[data-theme='darkFox'] .standard-note-text {
+  color: #f3f4f6 !important;
+}
+
+body[data-theme='corsacFox'] .standard-note-text {
+  color: #222831 !important;
+}
+
+/* Standard folder text color based on theme */
+.standard-folder-text {
+  color: #000000 !important; /* Default to black for all themes */
+}
+
+/* Only override for dark theme */
+body[data-theme='darkFox'] .standard-folder-text {
+  color: #f3f4f6 !important;
+}
+
+/* Standard note and folder card styling */
+.standard-note-card,
+.standard-folder-card {
+  color: #000000 !important; /* Default to black for all themes */
+}
+
+/* Only override for dark theme */
+body[data-theme='darkFox'] .standard-note-card,
+body[data-theme='darkFox'] .standard-folder-card {
+  color: #f3f4f6 !important;
+}
+
+/* Ensure all text elements within standard cards get the right color */
+.standard-note-card *:not(.ion-color),
+.standard-folder-card *:not(.ion-color) {
+  color: inherit !important;
+}
+
+/* Modal text styling based on theme */
+/* Default to black text for all modals */
+ion-modal ion-label,
+ion-modal ion-item,
+ion-modal ion-select,
+ion-modal ion-select-option,
+ion-modal ion-text,
+ion-modal ion-input,
+ion-modal ion-textarea,
+ion-modal ion-segment-button,
+ion-modal ion-tab-button,
+ion-modal p,
+ion-modal h1, ion-modal h2, ion-modal h3, ion-modal h4, ion-modal h5, ion-modal h6,
+ion-modal .modal-title,
+ion-modal .modal-section-title {
+  color: #000000 !important;
+}
+
+/* Override for dark theme */
+body[data-theme='darkFox'] ion-modal ion-label,
+body[data-theme='darkFox'] ion-modal ion-item,
+body[data-theme='darkFox'] ion-modal ion-select,
+body[data-theme='darkFox'] ion-modal ion-select-option,
+body[data-theme='darkFox'] ion-modal ion-text,
+body[data-theme='darkFox'] ion-modal ion-input,
+body[data-theme='darkFox'] ion-modal ion-textarea,
+body[data-theme='darkFox'] ion-modal ion-segment-button,
+body[data-theme='darkFox'] ion-modal ion-tab-button,
+body[data-theme='darkFox'] ion-modal p,
+body[data-theme='darkFox'] ion-modal h1, body[data-theme='darkFox'] ion-modal h2, body[data-theme='darkFox'] ion-modal h3, body[data-theme='darkFox'] ion-modal h4, body[data-theme='darkFox'] ion-modal h5, body[data-theme='darkFox'] ion-modal h6,
+body[data-theme='darkFox'] ion-modal .modal-title,
+body[data-theme='darkFox'] ion-modal .modal-section-title {
+  color: #f3f4f6 !important;
+}
+
+/* Ensure dropdown text is visible */
+ion-select::part(text),
+ion-select::part(placeholder),
+ion-select-option::part(text),
+ion-select::part(icon),
+.select-text,
+.select-placeholder,
+.alert-radio-label,
+.alert-checkbox-label,
+.alert-message,
+.alert-sub-title,
+.alert-title,
+.action-sheet-button,
+.action-sheet-title,
+.action-sheet-sub-title {
+  color: inherit !important;
+}
+
+/* Dropdown text in light themes */
+body[data-theme='redFox'] ion-select::part(text),
+body[data-theme='redFox'] ion-select::part(placeholder),
+body[data-theme='redFox'] ion-select::part(icon),
+body[data-theme='redFox'] .select-text,
+body[data-theme='redFox'] .select-placeholder,
+body[data-theme='redFox'] .alert-radio-label,
+body[data-theme='redFox'] .alert-checkbox-label,
+body[data-theme='redFox'] .alert-message,
+body[data-theme='redFox'] .alert-sub-title,
+body[data-theme='redFox'] .alert-title,
+body[data-theme='redFox'] .action-sheet-button,
+body[data-theme='redFox'] .action-sheet-title,
+body[data-theme='redFox'] .action-sheet-sub-title,
+body[data-theme='arcticFox'] ion-select::part(text),
+body[data-theme='arcticFox'] ion-select::part(placeholder),
+body[data-theme='arcticFox'] ion-select::part(icon),
+body[data-theme='arcticFox'] .select-text,
+body[data-theme='arcticFox'] .select-placeholder,
+body[data-theme='arcticFox'] .alert-radio-label,
+body[data-theme='arcticFox'] .alert-checkbox-label,
+body[data-theme='arcticFox'] .alert-message,
+body[data-theme='arcticFox'] .alert-sub-title,
+body[data-theme='arcticFox'] .alert-title,
+body[data-theme='arcticFox'] .action-sheet-button,
+body[data-theme='arcticFox'] .action-sheet-title,
+body[data-theme='arcticFox'] .action-sheet-sub-title,
+body[data-theme='corsacFox'] ion-select::part(text),
+body[data-theme='corsacFox'] ion-select::part(placeholder),
+body[data-theme='corsacFox'] ion-select::part(icon),
+body[data-theme='corsacFox'] .select-text,
+body[data-theme='corsacFox'] .select-placeholder,
+body[data-theme='corsacFox'] .alert-radio-label,
+body[data-theme='corsacFox'] .alert-checkbox-label,
+body[data-theme='corsacFox'] .alert-message,
+body[data-theme='corsacFox'] .alert-sub-title,
+body[data-theme='corsacFox'] .alert-title,
+body[data-theme='corsacFox'] .action-sheet-button,
+body[data-theme='corsacFox'] .action-sheet-title,
+body[data-theme='corsacFox'] .action-sheet-sub-title {
+  color: #000000 !important;
+}
+
+/* Dropdown text in dark theme */
+body[data-theme='darkFox'] ion-select::part(text),
+body[data-theme='darkFox'] ion-select::part(placeholder),
+body[data-theme='darkFox'] ion-select::part(icon),
+body[data-theme='darkFox'] .select-text,
+body[data-theme='darkFox'] .select-placeholder,
+body[data-theme='darkFox'] .alert-radio-label,
+body[data-theme='darkFox'] .alert-checkbox-label,
+body[data-theme='darkFox'] .alert-message,
+body[data-theme='darkFox'] .alert-sub-title,
+body[data-theme='darkFox'] .alert-title,
+body[data-theme='darkFox'] .action-sheet-button,
+body[data-theme='darkFox'] .action-sheet-title,
+body[data-theme='darkFox'] .action-sheet-sub-title {
+  color: #f3f4f6 !important;
+}
+
+/* Ensure dropdown popover background and text colors are correct */
+.select-popover,
+.alert-wrapper,
+.action-sheet-group {
+  --background: var(--notable-surface, #ffffff) !important;
+  background: var(--notable-surface, #ffffff) !important;
+}
+
+body[data-theme='darkFox'] .select-popover,
+body[data-theme='darkFox'] .alert-wrapper,
+body[data-theme='darkFox'] .action-sheet-group {
+  --background: var(--notable-surface, #232336) !important;
+  background: var(--notable-surface, #232336) !important;
+}
+
+/* Bottom tab styling based on theme */
+ion-tab-bar {
+  --background: var(--notable-surface, #ffffff) !important;
+  background: var(--notable-surface, #ffffff) !important;
+}
+
+ion-tab-button {
+  --color: var(--notable-text, #18181b) !important;
+  --color-selected: var(--notable-primary, #4b6bfa) !important;
+}
+
+/* Theme-specific tab styling */
+body[data-theme='redFox'] ion-tab-bar {
+  --background: var(--notable-surface, #F5ECD5) !important;
+  background: var(--notable-surface, #F5ECD5) !important;
+}
+
+body[data-theme='redFox'] ion-tab-button {
+  --color: #000000 !important;
+  --color-selected: var(--notable-primary, #A4B465) !important;
+}
+
+body[data-theme='arcticFox'] ion-tab-bar {
+  --background: var(--notable-surface, #ffffff) !important;
+  background: var(--notable-surface, #ffffff) !important;
+}
+
+body[data-theme='arcticFox'] ion-tab-button {
+  --color: #000000 !important;
+  --color-selected: var(--notable-primary, #4b6bfa) !important;
+}
+
+body[data-theme='corsacFox'] ion-tab-bar {
+  --background: var(--notable-surface, #DFD0B8) !important;
+  background: var(--notable-surface, #DFD0B8) !important;
+}
+
+body[data-theme='corsacFox'] ion-tab-button {
+  --color: #000000 !important;
+  --color-selected: var(--notable-primary, #393E46) !important;
+}
+
+body[data-theme='darkFox'] ion-tab-bar {
+  --background: var(--notable-surface, #232336) !important;
+  background: var(--notable-surface, #232336) !important;
+}
+
+body[data-theme='darkFox'] ion-tab-button {
+  --color: #f3f4f6 !important;
+  --color-selected: var(--notable-primary, #60a5fa) !important;
+}
+
+/* MusicTab specific styling */
+.music-tab ion-label,
+.music-tab ion-item,
+.music-tab ion-segment-button,
+.music-tab ion-tab-button,
+.music-tab ion-text,
+.music-tab p,
+.music-tab h1, .music-tab h2, .music-tab h3, .music-tab h4, .music-tab h5, .music-tab h6 {
+  color: var(--notable-text, #18181b) !important;
+}
+
+/* MusicTab search result text */
+.music-tab .music-search-result, /* add this class to your search result container */
+.music-tab .music-search-result * {
+  color: #000000 !important;
+}
+body[data-theme='darkFox'] .music-tab .music-search-result,
+body[data-theme='darkFox'] .music-tab .music-search-result * {
+  color: #f3f4f6 !important;
+}
+
+
+/* MusicTab segment buttons (media/browser switcher) */
+ion-segment-button {
+  --color: #000000 !important;
+  --color-checked: #000000 !important;
+  --indicator-color: var(--notable-primary, #4b6bfa) !important;
+}
+
+body[data-theme='darkFox'] ion-segment-button {
+  --color: #f3f4f6 !important;
+  --color-checked: #f3f4f6 !important;
+  --indicator-color: var(--notable-primary, #60a5fa) !important;
+}
+
+body[data-theme='redFox'] .music-tab ion-label,
+body[data-theme='redFox'] .music-tab ion-item,
+body[data-theme='redFox'] .music-tab ion-segment-button,
+body[data-theme='redFox'] .music-tab ion-tab-button,
+body[data-theme='redFox'] .music-tab ion-text,
+body[data-theme='redFox'] .music-tab p,
+body[data-theme='redFox'] .music-tab h1, body[data-theme='redFox'] .music-tab h2, body[data-theme='redFox'] .music-tab h3, body[data-theme='redFox'] .music-tab h4, body[data-theme='redFox'] .music-tab h5, body[data-theme='redFox'] .music-tab h6 {
+  color: #000000 !important;
+}
+
+body[data-theme='arcticFox'] .music-tab ion-label,
+body[data-theme='arcticFox'] .music-tab ion-item,
+body[data-theme='arcticFox'] .music-tab ion-segment-button,
+body[data-theme='arcticFox'] .music-tab ion-tab-button,
+body[data-theme='arcticFox'] .music-tab ion-text,
+body[data-theme='arcticFox'] .music-tab p,
+body[data-theme='arcticFox'] .music-tab h1, body[data-theme='arcticFox'] .music-tab h2, body[data-theme='arcticFox'] .music-tab h3, body[data-theme='arcticFox'] .music-tab h4, body[data-theme='arcticFox'] .music-tab h5, body[data-theme='arcticFox'] .music-tab h6 {
+  color: #000000 !important;
+}
+
+body[data-theme='corsacFox'] .music-tab ion-label,
+body[data-theme='corsacFox'] .music-tab ion-item,
+body[data-theme='corsacFox'] .music-tab ion-segment-button,
+body[data-theme='corsacFox'] .music-tab ion-tab-button,
+body[data-theme='corsacFox'] .music-tab ion-text,
+body[data-theme='corsacFox'] .music-tab p,
+body[data-theme='corsacFox'] .music-tab h1, body[data-theme='corsacFox'] .music-tab h2, body[data-theme='corsacFox'] .music-tab h3, body[data-theme='corsacFox'] .music-tab h4, body[data-theme='corsacFox'] .music-tab h5, body[data-theme='corsacFox'] .music-tab h6 {
+  color: #000000 !important;
+}
+
+body[data-theme='darkFox'] .music-tab ion-label,
+body[data-theme='darkFox'] .music-tab ion-item,
+body[data-theme='darkFox'] .music-tab ion-segment-button,
+body[data-theme='darkFox'] .music-tab ion-tab-button,
+body[data-theme='darkFox'] .music-tab ion-text,
+body[data-theme='darkFox'] .music-tab p,
+body[data-theme='darkFox'] .music-tab h1, body[data-theme='darkFox'] .music-tab h2, body[data-theme='darkFox'] .music-tab h3, body[data-theme='darkFox'] .music-tab h4, body[data-theme='darkFox'] .music-tab h5, body[data-theme='darkFox'] .music-tab h6 {
+  color: #f3f4f6 !important;
+}
+
+/* Co-worker badge and name styling */
+.co-worker-badge {
+  background: var(--notable-surface, #f1f1f1) !important;
+}
+
+/* Co-worker name text color based on theme */
+.co-worker-name {
+  color: inherit;
+}
+
+body[data-theme='redFox'] .co-worker-name,
+body[data-theme='arcticFox'] .co-worker-name,
+body[data-theme='corsacFox'] .co-worker-name {
+  color: #000000 !important;
+}
+
+body[data-theme='darkFox'] .co-worker-name {
+  color: #f3f4f6 !important;
+}
+
+/* Apply black text to standard note text and folder titles in all themes except Corsac Fox and Dark Fox */
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) .note-card:not([style*="color:"]) .note-text,
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) .folder-card:not([style*="color:"]) .folder-title {
+  color: #000000 !important;
+}
+
+/* Add to your List.css or a global CSS file */
+.ion-menu .ion-icon,
+.ion-menu ion-icon,
+.ion-menu .sidebar-icon {
+  color: var(--notable-text, #18181b) !important;
+}
+
+/* Search bar text color for Red Fox and Corsac Fox themes */
+body[data-theme='redFox'] ion-searchbar::part(placeholder),
+body[data-theme='redFox'] ion-searchbar::part(text),
+body[data-theme='redFox'] ion-searchbar input,
+body[data-theme='corsacFox'] ion-searchbar::part(placeholder),
+body[data-theme='corsacFox'] ion-searchbar::part(text),
+body[data-theme='corsacFox'] ion-searchbar input {
+  color: #000000 !important;
+}
+
+/* Ensure search bar icon is visible in all themes */
+ion-searchbar::part(icon) {
+  color: var(--notable-text, #18181b) !important;
+}
+
+/* Search bar background and border for better visibility */
+ion-searchbar {
+  --background: rgba(255, 255, 255, 0.8) !important;
+  --border-radius: 8px !important;
+  --box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Dark theme search bar */
+body[data-theme='darkFox'] ion-searchbar {
+  --background: rgba(35, 35, 54, 0.8) !important;
+  --color: #f3f4f6 !important;
+}
+
+/* Light theme search bar text */
+body[data-theme='redFox'] ion-searchbar,
+body[data-theme='arcticFox'] ion-searchbar,
+body[data-theme='corsacFox'] ion-searchbar {
+  --color: #000000 !important;
+  --placeholder-color: #666666 !important;
+  --placeholder-opacity: 1 !important;
+}
+

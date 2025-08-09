@@ -1,0 +1,1284 @@
+import { Redirect, Route } from "react-router-dom";
+import { IonApp, IonRouterOutlet, setupIonicReact, IonSplitPane, IonMenu, IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem, IonIcon, IonMenuToggle, IonAvatar, IonText, IonButton, IonSpinner, IonLabel, IonThumbnail, IonImg, IonModal, IonButtons, IonInput, useIonToast } from "@ionic/react";
+import { IonReactRouter } from "@ionic/react-router";
+import { Auth0Provider, useAuth0 } from "@auth0/auth0-react";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Menu from "./pages/Menu";
+import authConfig from "./auth_config";
+import MindmapFolder from "./pages/MindmapFolder";
+import { homeOutline, settingsOutline, musicalNoteOutline, playSkipBackOutline, playSkipForwardOutline, pauseOutline, playOutline, personOutline, peopleOutline, folderOutline, chevronUpOutline, chevronDownOutline, closeOutline, copyOutline } from 'ionicons/icons';
+import { useState, useRef, useEffect } from 'react';
+import { getUserConfig } from './pages/apiService';
+
+// API URL constant
+const apiUrl = 'https://localhost:7281/notes/api/v1/';
+
+/* Ionic CSS */
+import "@ionic/react/css/core.css";
+import "@ionic/react/css/normalize.css";
+import "@ionic/react/css/structure.css";
+import "@ionic/react/css/typography.css";
+import "@ionic/react/css/padding.css";
+import "@ionic/react/css/float-elements.css";
+import "@ionic/react/css/text-alignment.css";
+import "@ionic/react/css/text-transformation.css";
+import "@ionic/react/css/flex-utils.css";
+import "@ionic/react/css/display.css";
+import "@ionic/react/css/palettes/dark.system.css";
+
+/* Theme */
+import "./theme/variables.css";
+import "./theme/themeVariables.css"; // Import the theme variables
+
+setupIonicReact();
+
+import { RouteComponentProps } from "react-router-dom";
+import List from "./pages/List";
+import Folder from "./pages/Folder"; 
+import OrganizerFolder from "./pages/OrganizerFolder";
+import CalcFolder from "./pages/calcFolder"; // Ensured casing
+import MusicTab from "./pages/MusicTab";
+import Settings from "./pages/Settings";
+import { UserProfile } from './components/UserProfile';
+
+const ProtectedRoute: React.FC<{ component: React.ComponentType<RouteComponentProps>; path: string; exact?: boolean }> = ({ component: Component, ...rest }) => {
+  const { isAuthenticated, isLoading } = useAuth0();
+
+if (isLoading) return isAuthenticated;
+
+return (
+  <Route
+    {...rest}
+    render={(props) =>
+      isAuthenticated ? <Component {...props} /> : <Redirect to="/" />
+    }
+  />
+);
+};
+
+// Add TypeScript declarations for the global functions
+declare global {
+  interface Window {
+    setMediaPlayerState: (video: any, playing: boolean) => void;
+    handlePlayPause: () => void;
+    handleNext: () => void;
+    handlePrevious: () => void;
+  }
+}
+
+// Initialize global functions with no-op implementations
+window.setMediaPlayerState = () => {};
+window.handlePlayPause = () => {};
+window.handleNext = () => {};
+window.handlePrevious = () => {};
+
+const PersistentMediaPlayer: React.FC = () => {
+  const [selectedVideo, setSelectedVideo] = useState<any>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoadingVideo, setIsLoadingVideo] = useState(false);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [playlist, setPlaylist] = useState<any[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(-1);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const playPromiseRef = useRef<Promise<void> | null>(null);
+  const isInitializedRef = useRef(false);
+
+  // Initialize video element
+  useEffect(() => {
+    if (!videoRef.current || isInitializedRef.current) return;
+
+    const video = videoRef.current;
+    video.preload = 'auto';
+    video.playsInline = true;
+    isInitializedRef.current = true;
+
+    return () => {
+      isInitializedRef.current = false;
+    };
+  }, []);
+
+  // Format time in MM:SS format
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  // Handle video playback control functions
+  useEffect(() => {
+    // Play/pause function
+    const playPause = async () => {
+      if (!videoRef.current) return;
+
+      try {
+        if (isPlaying) {
+          await videoRef.current.pause();
+          setIsPlaying(false);
+        } else {
+          if (playPromiseRef.current) {
+            await playPromiseRef.current;
+          }
+          playPromiseRef.current = videoRef.current.play();
+          await playPromiseRef.current;
+          setIsPlaying(true);
+          setVideoError(null);
+        }
+      } catch (error) {
+        console.error('Error playing/pausing video:', error);
+        setVideoError('Failed to play video. Please try again.');
+        setIsPlaying(false);
+      }
+    };
+
+    // Next function implementation
+    const next = async () => {
+      if (playlist.length === 0 || currentIndex === -1) return;
+      
+      const nextIndex = (currentIndex + 1) % playlist.length;
+      const nextVideo = playlist[nextIndex];
+      
+      if (nextVideo) {
+        setCurrentIndex(nextIndex);
+        await window.setMediaPlayerState(nextVideo, true);
+      }
+    };
+
+    // Previous function implementation
+    const previous = async () => {
+      if (playlist.length === 0 || currentIndex === -1) return;
+      
+      const prevIndex = (currentIndex - 1 + playlist.length) % playlist.length;
+      const prevVideo = playlist[prevIndex];
+      
+      if (prevVideo) {
+        setCurrentIndex(prevIndex);
+        await window.setMediaPlayerState(prevVideo, true);
+      }
+    };
+
+    // Assign the functions to the global window object
+    window.handlePlayPause = playPause;
+    window.handleNext = next;
+    window.handlePrevious = previous;
+
+    // Function to set media player state
+    window.setMediaPlayerState = async (video: any, playing: boolean) => {
+      if (!videoRef.current) {
+        console.error('Video element not found');
+        return;
+      }
+
+      try {
+        // Update playlist if needed
+        const videoExists = playlist.some(v => v.id === video.id);
+        if (!videoExists) {
+          const newPlaylist = [...playlist, video];
+          setPlaylist(newPlaylist);
+          setCurrentIndex(newPlaylist.length - 1);
+        } else {
+          setCurrentIndex(playlist.findIndex(v => v.id === video.id));
+        }
+
+        // Set the selected video
+        setSelectedVideo(video);
+        setIsLoadingVideo(true);
+        setVideoError(null);
+
+        // Construct the video URL
+        const videoUrl = `https://localhost:7281/notes/api/v1/videos/${video.id}/stream`;
+        
+        // Set video source directly
+        videoRef.current.src = videoUrl;
+        
+        // Wait for the video to be loaded
+        await new Promise((resolve) => {
+          const handleCanPlay = () => {
+            videoRef.current?.removeEventListener('canplay', handleCanPlay);
+            resolve(true);
+          };
+          videoRef.current?.addEventListener('canplay', handleCanPlay);
+          videoRef.current?.load();
+        });
+        
+        // If playing is true, try to play the video when it's ready
+        if (playing) {
+          try {
+            if (playPromiseRef.current) {
+              await playPromiseRef.current;
+            }
+            playPromiseRef.current = videoRef.current.play();
+            await playPromiseRef.current;
+            setIsPlaying(true);
+          } catch (playError) {
+            console.error('Error playing video:', playError);
+            setVideoError('Failed to play video. Please try again.');
+            setIsPlaying(false);
+          }
+        } else {
+          setIsPlaying(false);
+        }
+        setIsLoadingVideo(false);
+      } catch (error) {
+        console.error('Error setting video source:', error);
+        setVideoError('Failed to load video. Please try again.');
+        setIsPlaying(false);
+        setIsLoadingVideo(false);
+      }
+    };
+
+    return () => {
+      // Clean up function
+      window.handlePlayPause = () => {};
+      window.handleNext = () => {};
+      window.handlePrevious = () => {};
+      window.setMediaPlayerState = () => {};
+    };
+  }, [playlist, currentIndex, isPlaying]);
+
+  // Update progress bar and handle video events
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Handle time updates
+    const handleTimeUpdate = () => {
+      setCurrentTime(video.currentTime);
+    };
+
+    // Handle duration change
+    const handleDurationChange = () => {
+      setDuration(video.duration);
+    };
+
+    // Handle when data is loaded
+    const handleLoadedData = () => {
+      setIsLoadingVideo(false);
+      setVideoError(null);
+    };
+
+    // Handle errors
+    const handleError = () => {
+      const error = video.error;
+      let errorMessage = 'Failed to load video';
+      
+      if (error) {
+        switch (error.code) {
+          case MediaError.MEDIA_ERR_ABORTED:
+            errorMessage = 'Video playback was aborted';
+            break;
+          case MediaError.MEDIA_ERR_NETWORK:
+            errorMessage = 'Network error while loading video';
+            break;
+          case MediaError.MEDIA_ERR_DECODE:
+            errorMessage = 'Error decoding video';
+            break;
+          case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+            errorMessage = 'Video format not supported';
+            break;
+        }
+      }
+      
+      console.error('Video error:', errorMessage);
+      setVideoError(errorMessage);
+      setIsPlaying(false);
+      setIsLoadingVideo(false);
+    };
+
+    // Add event listeners
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('durationchange', handleDurationChange);
+    video.addEventListener('loadeddata', handleLoadedData);
+    video.addEventListener('error', handleError);
+    video.addEventListener('ended', () => {
+      setIsPlaying(false);
+      window.handleNext();
+    });
+    video.addEventListener('pause', () => setIsPlaying(false));
+    video.addEventListener('play', () => setIsPlaying(true));
+    video.addEventListener('waiting', () => setIsLoadingVideo(true));
+    video.addEventListener('playing', () => setIsLoadingVideo(false));
+
+    return () => {
+      // Remove event listeners on cleanup
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('durationchange', handleDurationChange);
+      video.removeEventListener('loadeddata', handleLoadedData);
+      video.removeEventListener('error', handleError);
+      video.removeEventListener('ended', () => {});
+      video.removeEventListener('pause', () => {});
+      video.removeEventListener('play', () => {});
+      video.removeEventListener('waiting', () => {});
+      video.removeEventListener('playing', () => {});
+    };
+  }, []);
+
+  // Handle seeking
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!videoRef.current) return;
+    const newTime = parseFloat(e.target.value);
+    videoRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+  };
+
+  // Calculate progress percentage
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  // Don't render anything if no video is selected
+  if (!selectedVideo) return null;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: 'var(--ion-color-light)',
+      padding: '16px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px',
+      boxShadow: '0 -2px 4px rgba(0,0,0,0.1)',
+      zIndex: 1000
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <IonThumbnail style={{ minWidth: '64px', minHeight: '64px' }}>
+          <IonImg 
+            src={selectedVideo.thumbnailUrl?.startsWith('http') ? selectedVideo.thumbnailUrl : `https://localhost:7281/notes/api/v1/videos/${selectedVideo.id}/thumbnail`}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            onError={(e) => {
+              const imgElement = e.target as HTMLImageElement;
+              imgElement.src = 'https://via.placeholder.com/64x64?text=No+Thumbnail';
+            }}
+          />
+        </IonThumbnail>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <IonText>
+            <h3 style={{ margin: 0, fontSize: '1rem' }}>{selectedVideo.title}</h3>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--ion-color-medium)' }}>
+              {selectedVideo.format?.toUpperCase()} • Downloaded on {new Date(selectedVideo.downloadedAt).toLocaleDateString()}
+            </p>
+            {isLoadingVideo && (
+              <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--ion-color-primary)' }}>
+                Loading video...
+              </p>
+            )}
+            {videoError && (
+              <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--ion-color-danger)' }}>
+                {videoError}
+              </p>
+            )}
+          </IonText>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <IonButton fill="clear" onClick={() => window.handlePrevious()}>
+            <IonIcon icon={playSkipBackOutline} slot="icon-only" />
+          </IonButton>
+          <IonButton fill="clear" onClick={() => window.handlePlayPause()}>
+            {isLoadingVideo ? (
+              <IonSpinner name="dots" />
+            ) : (
+              <IonIcon icon={isPlaying ? pauseOutline : playOutline} slot="icon-only" />
+            )}
+          </IonButton>
+          <IonButton fill="clear" onClick={() => window.handleNext()}>
+            <IonIcon icon={playSkipForwardOutline} slot="icon-only" />
+          </IonButton>
+        </div>
+      </div>
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '8px', 
+        padding: '0 16px',
+        position: 'relative'
+      }}>
+        <span style={{ 
+          fontSize: '0.8rem', 
+          color: 'var(--ion-color-medium)',
+          minWidth: '45px',
+          textAlign: 'right'
+        }}>
+          {formatTime(currentTime)}
+        </span>
+        <div style={{
+          flex: 1,
+          height: '4px',
+          backgroundColor: 'var(--ion-color-medium)',
+          borderRadius: '2px',
+          position: 'relative',
+          cursor: 'pointer'
+        }}>
+          <div style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            height: '100%',
+            width: `${progress}%`,
+            backgroundColor: 'var(--ion-color-primary)',
+            borderRadius: '2px',
+            transition: 'width 0.1s linear'
+          }} />
+          <input
+            type="range"
+            min={0}
+            max={duration || 100}
+            value={currentTime}
+            onChange={handleSeek}
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: '100%',
+              height: '100%',
+              opacity: 0,
+              cursor: 'pointer',
+              margin: 0,
+              padding: 0
+            }}
+          />
+        </div>
+        <span style={{ 
+          fontSize: '0.8rem', 
+          color: 'var(--ion-color-medium)',
+          minWidth: '45px'
+        }}>
+          {formatTime(duration)}
+        </span>
+      </div>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1000, display: selectedVideo ? 'block' : 'none' }}>
+        <video
+          ref={videoRef}
+          style={{ display: 'none' }}
+          onEnded={() => window.handleNext()}
+          playsInline
+          preload="auto"
+        />
+      </div>
+    </div>
+  );
+};
+
+const AppContent: React.FC = () => {
+  const { isAuthenticated, isLoading, user, logout } = useAuth0();
+  const [userConfig, setUserConfig] = useState<any>(null);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(false);
+  const [presentToast] = useIonToast();
+
+  // Fetch user config and shared folders from backend when authenticated
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (isAuthenticated && user?.sub) {
+        setIsLoadingProfile(true);
+        try {
+          // Get user config from backend
+          let config = await getUserConfig(user.sub);
+          
+          // Fetch all users for co-worker display
+          const baseUrl = apiUrl.replace('/notes/api/v1/', '');
+          const allUsersResponse = await fetch(`${baseUrl}/config/api/v1/users`, {
+            headers: { 'Accept': 'application/json' }
+          });
+          
+          if (allUsersResponse.ok) {
+            const users = await allUsersResponse.json();
+            setAllUsers(users);
+            console.log('Fetched all users for co-worker display:', users.length);
+          }
+          
+          // If config doesn't exist or is missing data, update it with OAuth data
+          if (!config) {
+            console.log('No user config found, will be created when visiting profile page');
+          } else {
+            // Check if we need to update missing fields with OAuth data
+            let configUpdated = false;
+            const baseUrl = apiUrl.replace('/notes/api/v1/', '');
+            
+            // If username is missing, use OAuth name
+            if (!config.username && user.name) {
+              console.log('Username missing in config, updating with OAuth name');
+              await fetch(`${baseUrl}/config/api/v1/${user.sub}/username`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(user.name)
+              });
+              config.username = user.name;
+              configUpdated = true;
+            }
+            
+            // If image is missing, use OAuth picture
+            if (!config.image_url && user.picture) {
+              console.log('Image URL missing in config, updating with OAuth picture');
+              await fetch(`${baseUrl}/config/api/v1/${user.sub}/image`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(user.picture)
+              });
+              config.image_url = user.picture;
+              configUpdated = true;
+            }
+            
+            // If we updated the config, refresh it
+            if (configUpdated) {
+              console.log('Config was updated with OAuth data, refreshing...');
+              config = await getUserConfig(user.sub);
+            }
+            
+            // Load shared folders and folders with co-workers
+            try {
+              // First get all folders
+              const allFoldersResponse = await fetch(`${baseUrl}/notes/api/v1/folders/${user.sub}`);
+              if (allFoldersResponse.ok) {
+                const allFoldersData = await allFoldersResponse.json();
+                
+                // Filter folders that have co-workers
+                const foldersWithCoWorkers = allFoldersData.filter(
+                  (folder: any) => folder.co_workers && folder.co_workers.length > 0
+                );
+                
+                // Get folders shared with this user
+                const sharedResponse = await fetch(`${baseUrl}/notes/api/v1/folders/shared/${user.sub}`);
+                let sharedFoldersData = [];
+                
+                if (sharedResponse.ok) {
+                  sharedFoldersData = await sharedResponse.json() || [];
+                }
+                
+                // Combine both lists and remove duplicates
+                const combinedFolders = [...foldersWithCoWorkers, ...sharedFoldersData];
+                const uniqueFolders = combinedFolders.filter((folder, index, self) =>
+                  index === self.findIndex((f) => f.id === folder.id)
+                );
+                
+                console.log('Loaded shared folders:', uniqueFolders);
+                setSharedFolders(uniqueFolders);
+              }
+            } catch (folderError) {
+              console.error('Error loading shared folders:', folderError);
+              setSharedFolders([]);
+            }
+          }
+          
+          setUserConfig(config);
+          console.log('Loaded user config:', config);
+        } catch (error) {
+          console.error('Error loading user config:', error);
+        } finally {
+          setIsLoadingProfile(false);
+        }
+      }
+    };
+    
+    fetchUserData();
+  }, [isAuthenticated, user]);
+
+  const paths = [
+    { name: "Home", url: "/app", icon: homeOutline },
+    { name: "Media", url: "/app/media", icon: musicalNoteOutline },
+    { name: "Settings", url: "/app/settings", icon: settingsOutline }
+  ];
+  
+  // State for modals
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [showAddCoWorkerModal, setShowAddCoWorkerModal] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [sharedFoldersExpanded, setSharedFoldersExpanded] = useState(false);
+  
+  // State for profile editing
+  const [newUsername, setNewUsername] = useState<string>('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  
+  // State for co-worker management
+  const [coWorkerKey, setCoWorkerKey] = useState<string>('');
+  const [coWorkerStatus, setCoWorkerStatus] = useState<string>('');
+  
+  // State for shared folders
+  const [sharedFolders, setSharedFolders] = useState<any[]>([]);
+
+  return (
+    <IonApp>
+      <IonReactRouter>
+        <IonSplitPane contentId="main" when={false}>
+          <IonMenu contentId="main" type="overlay">
+            <IonHeader>
+              <IonToolbar>
+                <IonTitle>Menu</IonTitle>
+              </IonToolbar>
+            </IonHeader>
+            <IonContent>
+              {/* User Profile Section */}
+              {isAuthenticated && (
+                <div className="ion-padding">
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+                    <IonAvatar style={{ width: '50px', height: '50px', marginRight: '10px' }}>
+                      {isLoadingProfile ? (
+                        <IonSpinner name="dots" />
+                      ) : (
+                        <img 
+                          src={userConfig?.image_url || user?.picture || 'https://ionicframework.com/docs/img/demos/avatar.svg'} 
+                          alt="Profile" 
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.onerror = null;
+                            target.src = 'https://ionicframework.com/docs/img/demos/avatar.svg';
+                          }}
+                        />
+                      )}
+                    </IonAvatar>
+                    <div>
+                      <IonText>
+                        <h2 style={{ margin: '0', fontSize: '18px' }}>
+                          {userConfig?.username || user?.name || user?.email || 'User'}
+                        </h2>
+                        <p style={{ margin: '0', fontSize: '14px', opacity: '0.7' }}>
+                          {user?.email}
+                        </p>
+                      </IonText>
+                    </div>
+                  </div>
+                  
+                  {/* Profile Actions */}
+                  <div style={{ margin: '16px 0' }}>
+                    <IonButton expand="block" onClick={() => setShowEditProfileModal(true)}>
+                      Edit Profile
+                    </IonButton>
+                    <IonButton expand="block" onClick={() => setShowAddCoWorkerModal(true)}>
+                      Add Co-worker
+                    </IonButton>
+                    <IonButton expand="block" onClick={() => setShowThemeModal(true)}>
+                      <IonIcon slot="start" icon={colorPaletteOutline} />
+                      Change Theme
+                    </IonButton>
+                  </div>
+                </div>
+              )}
+              <IonList>
+                {paths.map((path, index) => (
+                  <IonMenuToggle key={index} autoHide={false}>
+                    <IonItem routerLink={path.url} routerDirection="forward" lines="none" detail={false}>
+                      <IonIcon slot="start" icon={path.icon} />
+                      <IonLabel>{path.name}</IonLabel>
+                    </IonItem>
+                  </IonMenuToggle>
+                ))}
+              </IonList>
+              {/* Logout Button */}
+              {isAuthenticated && (
+                <IonMenuToggle autoHide={false}>
+                  <IonItem lines="none" className="ion-margin-top">
+                    <IonButton expand="full" color="danger" onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}>
+                      Logout
+                    </IonButton>
+                  </IonItem>
+                </IonMenuToggle>
+              )}
+            </IonContent>
+          </IonMenu>
+          <IonRouterOutlet id="main"></IonRouterOutlet>
+        </IonSplitPane>
+      </IonReactRouter>
+      {/* Modals */}
+      <IonModal isOpen={showEditProfileModal} onDidDismiss={() => setShowEditProfileModal(false)}>
+        <IonHeader>
+          <IonToolbar>
+            <IonTitle>Edit Profile</IonTitle>
+            <IonButtons slot="end">
+              <IonButton onClick={() => setShowEditProfileModal(false)}>
+                <IonIcon icon={closeOutline} />
+              </IonButton>
+            </IonButtons>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent className="ion-padding">
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px' }}>
+            <IonAvatar style={{ width: '100px', height: '100px', marginBottom: '16px' }}>
+              <img src={selectedImage || userConfig?.image_url || user?.picture} alt="Profile" />
+            </IonAvatar>
+            <input 
+              type="file" 
+              id="profile-image-upload" 
+              accept="image/*" 
+              style={{ display: 'none' }}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    setSelectedImage(reader.result as string);
+                  };
+                  reader.readAsDataURL(file);
+                }
+              }}
+            />
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <IonButton 
+                size="small" 
+                onClick={() => document.getElementById('profile-image-upload')?.click()}
+              >
+                Change Image
+              </IonButton>
+              {(selectedImage || userConfig?.image_url) && (
+                <IonButton 
+                  size="small" 
+                  color="danger"
+                  onClick={() => setSelectedImage(null)}
+                >
+                  Remove
+                </IonButton>
+              )}
+            </div>
+          </div>
+          
+          <IonItem>
+            <IonLabel position="stacked">Username</IonLabel>
+            <IonInput 
+              value={newUsername} 
+              onIonChange={(e: CustomEvent) => setNewUsername((e.detail.value as string) || '')}
+              placeholder="Enter your username"
+            />
+          </IonItem>
+          
+          <IonButton 
+            expand="block" 
+            className="ion-margin-top"
+            onClick={async () => {
+              if (!user?.sub) return;
+              
+              try {
+                console.log('Updating entire user config at once to preserve all data');
+                const baseUrl = apiUrl.replace('/notes/api/v1/', '');
+                
+                // Determine the final image value
+                let finalImageUrl = userConfig?.image_url || '';
+                if (selectedImage !== undefined) {
+                  finalImageUrl = selectedImage || ''; // null becomes empty string
+                }
+                
+                // Create a complete config object with all existing data plus updates
+                const updatedConfig = {
+                  user_id: user.sub,
+                  username: newUsername || userConfig?.username || '',
+                  image_url: finalImageUrl,
+                  co_workers: userConfig?.co_workers || [],
+                  co_folders: userConfig?.co_folders || [],
+                  user_key: userConfig?.user_key || ''
+                };
+                
+                console.log('Sending complete config update:', updatedConfig);
+                
+                // Update the entire config at once
+                const response = await fetch(`${baseUrl}/config/api/v1/${user.sub}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(updatedConfig)
+                });
+                
+                if (!response.ok) {
+                  const errorText = await response.text();
+                  console.error('Failed to update profile:', errorText);
+                  presentToast({
+                    message: 'Failed to update profile',
+                    duration: 2000,
+                    position: 'bottom',
+                    color: 'danger'
+                  });
+                  return;
+                }
+                
+                const updatedData = await response.json();
+                console.log('Profile updated successfully:', updatedData);
+                
+                // Profile was successfully updated
+                // Wait a moment to ensure backend processing completes
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Refresh user config
+                const config = await getUserConfig(user.sub);
+                console.log('Updated user config:', config);
+                setUserConfig(config);
+                setShowEditProfileModal(false);
+                presentToast({
+                  message: 'Profile updated successfully!',
+                  duration: 2000,
+                  position: 'bottom',
+                  color: 'success'
+                });
+                
+                // Force refresh of all users data to update co-worker displays
+                const allUsersResponse = await fetch(`${baseUrl}/config/api/v1/users`, {
+                  headers: { 'Accept': 'application/json' }
+                });
+                
+                if (allUsersResponse.ok) {
+                  const users = await allUsersResponse.json();
+                  setAllUsers(users);
+                  console.log('Refreshed all users data after profile update');
+                }
+              } catch (error) {
+                console.error('Error updating profile:', error);
+                presentToast({
+                  message: 'Error updating profile',
+                  duration: 2000,
+                  position: 'bottom',
+                  color: 'danger'
+                });
+              }
+            }}
+          >
+            Save Changes
+          </IonButton>
+        </IonContent>
+      </IonModal>
+      
+      {/* Theme Settings Modal */}
+      <IonModal isOpen={showThemeModal} onDidDismiss={() => setShowThemeModal(false)}>
+        <IonHeader>
+          <IonToolbar>
+            <IonTitle>App Theme</IonTitle>
+            <IonButtons slot="end">
+              <IonButton onClick={() => setShowThemeModal(false)}>
+                <IonIcon icon={closeOutline} />
+              </IonButton>
+            </IonButtons>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent>
+          <ThemeSelector onClose={() => setShowThemeModal(false)} />
+        </IonContent>
+      </IonModal>
+      
+      {/* Add Co-worker Modal */}
+      <IonModal isOpen={showAddCoWorkerModal} onDidDismiss={() => setShowAddCoWorkerModal(false)}>
+        <IonHeader>
+          <IonToolbar>
+            <IonTitle>Add Co-worker</IonTitle>
+            <IonButtons slot="end">
+              <IonButton onClick={() => setShowAddCoWorkerModal(false)}>
+                <IonIcon icon={closeOutline} />
+              </IonButton>
+            </IonButtons>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent className="ion-padding">
+          {/* Display user's own key */}
+          <div className="ion-padding-bottom">
+            <IonText color="medium">
+              <h5 style={{ margin: '0 0 8px 0' }}>Your User Key</h5>
+              <div style={{ 
+                background: 'var(--ion-color-light)', 
+                padding: '12px', 
+                borderRadius: '8px',
+                fontFamily: 'monospace',
+                fontSize: '14px',
+                wordBreak: 'break-all',
+                marginBottom: '8px',
+                position: 'relative'
+              }}>
+                {userConfig?.user_key || 'Loading...'}
+              </div>
+              <IonButton 
+                size="small" 
+                fill="outline"
+                onClick={() => {
+                  if (userConfig?.user_key) {
+                    navigator.clipboard.writeText(userConfig.user_key)
+                      .then(() => {
+                        presentToast({
+                          message: 'User key copied to clipboard!',
+                          duration: 2000,
+                          position: 'bottom',
+                          color: 'success'
+                        });
+                      })
+                      .catch(err => {
+                        console.error('Could not copy text: ', err);
+                        presentToast({
+                          message: 'Failed to copy to clipboard',
+                          duration: 2000,
+                          position: 'bottom',
+                          color: 'danger'
+                        });
+                      });
+                  }
+                }}
+                style={{ marginBottom: '8px' }}
+              >
+                <IonIcon slot="start" icon={copyOutline} />
+                Copy to Clipboard
+              </IonButton>
+              <p style={{ fontSize: '13px', opacity: 0.8, marginTop: '4px' }}>
+                Share this key with others so they can add you as a co-worker
+              </p>
+            </IonText>
+          </div>
+          
+          {/* Current Co-workers Section */}
+          {userConfig?.co_workers && userConfig.co_workers.length > 0 && (
+            <div className="ion-padding-bottom">
+              <h5 style={{ margin: '16px 0 12px 0' }}>Your Co-workers</h5>
+              <div style={{ 
+                background: 'var(--ion-color-light-shade)', 
+                borderRadius: '8px',
+                overflow: 'hidden',
+                marginBottom: '16px'
+              }}>
+                {userConfig.co_workers.map((coWorkerId: string, index: number) => {
+                  // Find co-worker details from all users
+                  const coWorkerDetails = allUsers?.find((u: any) => 
+                    u.user_id === coWorkerId || u.user_key === coWorkerId
+                  );
+                  
+                  const displayName = coWorkerDetails?.username || 
+                                      coWorkerDetails?.email || 
+                                      coWorkerDetails?.name || 
+                                      'Unknown User';
+                                      
+                  const imageUrl = coWorkerDetails?.image_url || 
+                                  'https://ionicframework.com/docs/img/demos/avatar.svg';
+                  
+                  return (
+                    <div key={index} style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      padding: '12px 16px',
+                      borderBottom: index < userConfig.co_workers.length - 1 ? '1px solid var(--ion-color-light)' : 'none'
+                      <IonIcon icon={closeOutline} />
+                    </IonButton>
+                  </IonButtons>
+                </IonToolbar>
+              </IonHeader>
+              <IonHeader>
+                <IonToolbar>
+                  <IonTitle>Add Co-worker</IonTitle>
+                  <IonButtons slot="end">
+                    <IonButton onClick={() => setShowAddCoWorkerModal(false)}>
+                      <IonIcon icon={closeOutline} />
+                    </IonButton>
+                  </IonButtons>
+                </IonToolbar>
+              </IonHeader>
+              <IonContent className="ion-padding">
+                {/* Display user's own key */}
+                <div className="ion-padding-bottom">
+                  <IonText color="medium">
+                    <h5 style={{ margin: '0 0 8px 0' }}>Your User Key</h5>
+                    <div style={{ 
+                      background: 'var(--ion-color-light)', 
+                      padding: '12px', 
+                      borderRadius: '8px',
+                      fontFamily: 'monospace',
+                      fontSize: '14px',
+                      wordBreak: 'break-all',
+                      marginBottom: '8px',
+                      position: 'relative'
+                    }}>
+                      {userConfig?.user_key || 'Loading...'}
+                    </div>
+                    <IonButton 
+                      size="small" 
+                      fill="outline"
+                      onClick={() => {
+                        if (userConfig?.user_key) {
+                          navigator.clipboard.writeText(userConfig.user_key)
+                            .then(() => {
+                              presentToast({
+                                message: 'User key copied to clipboard!',
+                                duration: 2000,
+                                position: 'bottom',
+                                color: 'success'
+                              });
+                            })
+                            .catch(err => {
+                              console.error('Could not copy text: ', err);
+                              presentToast({
+                                message: 'Failed to copy to clipboard',
+                                duration: 2000,
+                                position: 'bottom',
+                                color: 'danger'
+                              });
+                            });
+                        }
+                      }}
+                      style={{ marginBottom: '8px' }}
+                    >
+                      <IonIcon slot="start" icon={copyOutline} />
+                      Copy to Clipboard
+                    </IonButton>
+                    <p style={{ fontSize: '13px', opacity: 0.8, marginTop: '4px' }}>
+                      Share this key with others so they can add you as a co-worker
+                    </p>
+                  </IonText>
+                </div>
+                
+                {/* Current Co-workers Section */}
+                {userConfig?.co_workers && userConfig.co_workers.length > 0 && (
+                  <div className="ion-padding-bottom">
+                    <h5 style={{ margin: '16px 0 12px 0' }}>Your Co-workers</h5>
+                    <div style={{ 
+                      background: 'var(--ion-color-light-shade)', 
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      marginBottom: '16px'
+                    }}>
+                      {userConfig.co_workers.map((coWorkerId: string, index: number) => {
+                        // Find co-worker details from all users
+                        const coWorkerDetails = allUsers?.find((u: any) => 
+                          u.user_id === coWorkerId || u.user_key === coWorkerId
+                        );
+                        
+                        const displayName = coWorkerDetails?.username || 
+                                          coWorkerDetails?.email || 
+                                          coWorkerDetails?.name || 
+                                          'Unknown User';
+                                          
+                        const imageUrl = coWorkerDetails?.image_url || 
+                                        'https://ionicframework.com/docs/img/demos/avatar.svg';
+                        
+                        return (
+                          <div key={index} style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            padding: '12px 16px',
+                            borderBottom: index < userConfig.co_workers.length - 1 ? '1px solid var(--ion-color-light)' : 'none'
+                          }}>
+                            <IonAvatar style={{ width: '40px', height: '40px', marginRight: '12px' }}>
+                              <img src={imageUrl} alt={displayName} />
+                            </IonAvatar>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 'bold' }}>{displayName}</div>
+                              <div style={{ 
+                                fontSize: '12px', 
+                                color: 'var(--ion-color-medium)',
+                                fontFamily: 'monospace',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                maxWidth: '200px'
+                              }}>
+                                {coWorkerId}
+                              </div>
+                            </div>
+                            <IonButton 
+                              fill="clear" 
+                              color="danger"
+                              size="small"
+                              onClick={async () => {
+                                if (!user?.sub) return;
+                                
+                                try {
+                                  const baseUrl = apiUrl.replace('/notes/api/v1/', '');
+                                  console.log('Current co-workers:', userConfig.co_workers);
+                                  console.log('Removing co-worker:', coWorkerId);
+                                  
+                                  const updatedCoWorkers = userConfig.co_workers.filter(
+                                    (id: string) => id !== coWorkerId
+                                  );
+                                  console.log('Updated co-workers list:', updatedCoWorkers);
+                                  
+                                  // Use the DELETE endpoint specifically for removing co-workers
+                                  const response = await fetch(`${baseUrl}/config/api/v1/${user.sub}/co-workers/${coWorkerId}`, {
+                                    method: 'DELETE',
+                                    headers: { 
+                                      'Accept': 'application/json'
+                                    }
+                                  });
+                                  
+                                  console.log('Remove co-worker response status:', response.status);
+                                  
+                                  if (response.ok) {
+                                    // Get the response data
+                                    const responseData = await response.json();
+                                    console.log('Co-worker removal response:', responseData);
+                                    
+                                    // Refresh user config
+                                    const config = await getUserConfig(user.sub);
+                                    console.log('Updated user config after removal:', config);
+                                    console.log('Co-workers after removal:', config?.co_workers || []);
+                                    setUserConfig(config);
+                                    
+                                    // Update allUsers state to refresh the UI
+                                    const allUsersResponse = await fetch(`${baseUrl}/config/api/v1/users`, {
+                                      headers: { 'Accept': 'application/json' }
+                                    });
+                                    
+                                    if (allUsersResponse.ok) {
+                                      const users = await allUsersResponse.json();
+                                      console.log('All users after co-worker removal:', users.length);
+                                      
+                                      // Check if the removed co-worker still has the current user as a co-worker
+                                      const removedCoWorkerConfig = users.find((u: any) => 
+                                        u.user_key === coWorkerId || u.user_id === coWorkerId
+                                      );
+                                      
+                                      if (removedCoWorkerConfig && config) {
+                                        console.log('Removed co-worker config:', removedCoWorkerConfig);
+                                        console.log('Does removed co-worker still have current user as co-worker?', 
+                                          removedCoWorkerConfig.co_workers?.includes(config.user_key) || false);
+                                      }
+                                      
+                                      setAllUsers(users);
+                                    }
+                                    
+                                    presentToast({
+                                      message: 'Co-worker removed successfully',
+                                      duration: 2000,
+                                      position: 'bottom',
+                                      color: 'success'
+                                    });
+                                  } else {
+                                    const errorText = await response.text();
+                                    console.error('Failed to remove co-worker:', errorText);
+                                    presentToast({
+                                      message: 'Failed to remove co-worker: ' + errorText,
+                                      duration: 2000,
+                                      position: 'bottom',
+                                      color: 'danger'
+                                    });
+                                  }
+                                } catch (error) {
+                                  console.error('Error removing co-worker:', error);
+                                  presentToast({
+                                    message: 'Error removing co-worker',
+                                    duration: 2000,
+                                    position: 'bottom',
+                                    color: 'danger'
+                                  });
+                                }
+                              }}
+                            >
+                              <IonIcon icon={closeOutline} />
+                            </IonButton>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Add New Co-worker Section */}
+                <h5 style={{ margin: '16px 0 12px 0' }}>Add New Co-worker</h5>
+                <IonItem>
+                  <IonLabel position="stacked">Co-worker's User Key</IonLabel>
+                  <IonInput 
+                    value={coWorkerKey} 
+                    onIonChange={(e: CustomEvent) => setCoWorkerKey((e.detail.value as string) || '')}
+                    placeholder="Enter co-worker's user key"
+                  />
+                </IonItem>
+                
+                {coWorkerStatus && (
+                  <div className="ion-padding" style={{ color: coWorkerStatus.includes('Error') ? 'var(--ion-color-danger)' : 'var(--ion-color-success)' }}>
+                    {coWorkerStatus}
+                  </div>
+                )}
+                
+                <IonButton 
+                  expand="block" 
+                  className="ion-margin-top"
+                  onClick={async () => {
+                    if (!user?.sub || !coWorkerKey.trim()) {
+                      setCoWorkerStatus('Error: Please enter a valid user key');
+                      return;
+                    }
+                    
+                    try {
+                      const baseUrl = apiUrl.replace('/notes/api/v1/', '');
+                      const currentConfig = await getUserConfig(user.sub);
+                      
+                      if (!currentConfig) {
+                        setCoWorkerStatus('Error: Could not retrieve your profile');
+                        return;
+                      }
+                      
+                      const currentCoWorkers = currentConfig.co_workers || [];
+                      
+                      if (currentCoWorkers.includes(coWorkerKey.trim())) {
+                        setCoWorkerStatus('Error: This user is already your co-worker');
+                        return;
+                      }
+                      
+                      const response = await fetch(`${baseUrl}/config/api/v1/${user.sub}/co-workers`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify([...currentCoWorkers, coWorkerKey.trim()])
+                      });
+                      
+                      if (response.ok) {
+                        // Clear status and input
+                        setCoWorkerStatus('');
+                        setCoWorkerKey('');
+                        
+                        // Refresh user config
+                        const config = await getUserConfig(user.sub);
+                        setUserConfig(config);
+                        
+                        // Show success toast and close modal
+                        presentToast({
+                          message: 'Co-worker added successfully!',
+                          duration: 2000,
+                          position: 'bottom',
+                          color: 'success'
+                        });
+                        
+                        // Close modal immediately
+                        setShowAddCoWorkerModal(false);
+                      } else {
+                        const errorText = await response.text();
+                        setCoWorkerStatus(`Error: ${errorText || 'Failed to add co-worker'}`);
+                      }
+                    } catch (error) {
+                      console.error('Error adding co-worker:', error);
+                      setCoWorkerStatus('Error: Failed to add co-worker');
+                    }
+                  }}
+                >
+                  Add Co-worker
+                </IonButton>
+              </IonContent>
+            </IonModal>
+            
+            <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+              <IonRouterOutlet id="main">
+                <Route exact path="/" component={Login} />
+                <Route exact path="/register" component={Register} />
+                <ProtectedRoute exact path="/app" component={List} />
+                <ProtectedRoute exact path="/app/list" component={List} />
+                <ProtectedRoute exact path="/app/organizerfolder/:name" component={OrganizerFolder} />
+                <ProtectedRoute exact path="/app/folder/:name" component={Folder} />
+                <ProtectedRoute path="/app/mindmapfolder/:folderName" component={MindmapFolder} exact />
+                <ProtectedRoute path="/app/calcfolder/:folderName" component={CalcFolder} exact /> 
+                <ProtectedRoute exact path="/app/media" component={MusicTab} />
+                <ProtectedRoute exact path="/app/media/downloaded" component={MusicTab} />
+                <ProtectedRoute exact path="/app/media/browser" component={MusicTab} />
+                <ProtectedRoute exact path="/app/settings" component={Settings} />
+                <ProtectedRoute exact path="/app/profile" component={UserProfile} />
+              </IonRouterOutlet>
+            </div>
+          </IonSplitPane>
+          {isAuthenticated && <PersistentMediaPlayer />}
+        </IonReactRouter>
+      </IonApp>
+  );
+};
+
+// Wrapper component that provides Auth0 context
+const App: React.FC = () => {
+  return (
+    <Auth0Provider
+      domain={authConfig.domain}
+      clientId={authConfig.clientId}
+      authorizationParams={{
+        redirect_uri: window.location.origin,
+        scope: "openid profile email"
+      }}
+      cacheLocation="localstorage"
+    >
+      <AppContent />
+    </Auth0Provider>
+  );
+};
+
+export default App;

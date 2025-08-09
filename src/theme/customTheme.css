@@ -1,0 +1,337 @@
+:root {
+  --notable-background: #f9f9fb;
+  --notable-surface: #fff;
+  --notable-primary: #2563eb;
+  --notable-secondary: #7c3aed;
+  --notable-accent: #f59e42;
+  --notable-error: #ef4444;
+  --notable-warning: #f59e42;
+  --notable-success: #22c55e;
+  --notable-text: #1a1a1a;
+  --notable-textMuted: #6b7280;
+  --notable-border: #e5e7eb;
+  --notable-overlay: rgba(0,0,0,0.2);
+  --notable-note-bg: #fffbe8;
+  --notable-folder-bg: #e3eafd;
+  --notable-standard-note-text: #000000;
+  --notable-standard-folder-text: #000000;
+  --notable-standard-icon-color: #000000;
+  --notable-modal-text: #000000;
+}
+
+body, ion-app, .main-bg {
+  background: var(--notable-background) !important;
+  color: var(--notable-text) !important;
+}
+
+ion-content {
+  --background: var(--notable-background) !important;
+  color: var(--notable-text) !important;
+}
+
+ion-toolbar, .surface {
+  background: var(--notable-surface) !important;
+  color: var(--notable-text) !important;
+}
+
+ion-list, ion-item {
+  background: var(--notable-surface) !important;
+  color: var(--notable-text) !important;
+}
+
+a, .accent {
+  color: var(--notable-accent) !important;
+}
+
+.text-muted {
+  color: var(--notable-textMuted) !important;
+}
+
+.border {
+  border-color: var(--notable-border) !important;
+}
+
+/* Standard note and folder styling */
+.standard-note {
+  background-color: var(--notable-note-bg) !important;
+  color: var(--notable-standard-note-text) !important;
+}
+
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) .ion-menu ion-icon,
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) ion-menu ion-icon,
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) .ion-menu .sidebar-icon,
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) ion-menu .sidebar-icon {
+  color: #000000 !important;
+}
+
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) ion-tab-button ion-icon,
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) ion-tab-bar ion-icon,
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) ion-segment-button ion-icon,
+body:not([data-theme='darkFox']):not([data-theme='corsacFox']) .media-icon {
+  color: #000000 !important;
+}
+
+/* Dark theme (darkFox) styles */
+body[data-theme='darkFox'] .ion-menu ion-icon,
+body[data-theme='darkFox'] ion-menu ion-icon,
+body[data-theme='darkFox'] .ion-menu .sidebar-icon,
+body[data-theme='darkFox'] ion-menu .sidebar-icon,
+body[data-theme='darkFox'] ion-tab-button ion-icon,
+body[data-theme='darkFox'] ion-tab-bar ion-icon,
+body[data-theme='darkFox'] ion-segment-button ion-icon,
+body[data-theme='darkFox'] .media-icon,
+body[data-theme='darkFox'] ion-title,
+body[data-theme='darkFox'] .toolbar-title {
+  color: #ffffff !important;
+}
+
+/* Dark theme (darkFox) - Calculation method and result text */
+body[data-theme='darkFox'] ion-toolbar ion-label,
+body[data-theme='darkFox'] ion-toolbar .result-text,
+body[data-theme='darkFox'] ion-toolbar .calculation-method,
+body[data-theme='darkFox'] ion-toolbar .calculation-label,
+body[data-theme='darkFox'] ion-toolbar ion-select::part(placeholder),
+body[data-theme='darkFox'] ion-toolbar ion-select::part(text),
+body[data-theme='darkFox'] ion-toolbar ion-select-option {
+  color: #1a1a1a !important;
+}
+
+/* Dark theme (darkFox) - Select dropdown styling */
+body[data-theme='darkFox'] ion-toolbar ion-select::part(icon) {
+  color: #1a1a1a !important;
+}
+
+/* Dark theme (darkFox) - Select popover/alert styling */
+body[data-theme='darkFox'] .select-interface-option {
+  --color: #1a1a1a !important;
+  --color-checked: #1a1a1a !important;
+}
+
+body[data-theme='darkFox'] .select-interface-option.ion-selected {
+  --color: #1a1a1a !important;
+  --color-checked: #1a1a1a !important;
+}
+
+/* Dark theme (darkFox) - Calculation select dropdown */
+body[data-theme='darkFox'] .calculation-select {
+  --placeholder-color: #1a1a1a !important;
+  --placeholder-opacity: 1 !important;
+}
+
+body[data-theme='darkFox'] .calculation-select::part(placeholder),
+body[data-theme='darkFox'] .calculation-select::part(text) {
+  color: #1a1a1a !important;
+}
+
+/* Dark theme (darkFox) - Select popover content */
+body[data-theme='darkFox'] .select-popover {
+  --background: #ffffff !important;
+  --backdrop-opacity: 0.5 !important;
+}
+
+body[data-theme='darkFox'] .select-popover .popover-content {
+  --background: #ffffff !important;
+  --box-shadow: 0 5px 5px -3px rgba(0, 0, 0, 0.2), 0 8px 10px 1px rgba(0, 0, 0, 0.14), 0 3px 14px 2px rgba(0, 0, 0, 0.12) !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+
+body[data-theme='darkFox'] .select-popover ion-list {
+  background: #ffffff !important;
+  padding: 8px 0 !important;
+}
+
+body[data-theme='darkFox'] .select-interface-option {
+  --background: #ffffff !important;
+  --background-hover: #f0f0f0 !important;
+  --background-activated: #e0e0e0 !important;
+  --color: #1a1a1a !important;
+  --color-activated: #1a1a1a !important;
+  --highlight-color-focused: #e0e0e0 !important;
+  --ripple-color: #e0e0e0 !important;
+}
+
+body[data-theme='darkFox'] .select-interface-option.ion-selected {
+  --background: #e0e0e0 !important;
+  --color: #1a1a1a !important;
+  --color-activated: #1a1a1a !important;
+}
+
+/* Fix for the overlay background */
+body[data-theme='darkFox'] .sc-ion-popover-md-h {
+  --backdrop-opacity: 0.5 !important;
+}
+
+/* Ensure the popover is above other content */
+ion-popover {
+  z-index: 1000 !important;
+}
+
+/* Fix for the select options text color */
+body[data-theme='darkFox'] .select-text {
+  color: #1a1a1a !important;
+}
+
+/* Ensure the select interface has proper contrast */
+body[data-theme='darkFox'] .select-interface {
+  --background: #ffffff !important;
+  --color: #1a1a1a !important;
+}
+
+/* Calculation input text dark in darkFox theme */
+body[data-theme='darkFox'] .calculation-input,
+body[data-theme='darkFox'] .calculation-input input {
+  color: #1a1a1a !important;
+  background: #fff !important;
+}
+
+/* Alert styling for darkFox theme */
+body[data-theme='darkFox'] .alert-wrapper {
+  --background: #ffffff !important;
+  --backdrop-opacity: 0.5 !important;
+}
+
+body[data-theme='darkFox'] .alert-head {
+  background: #222 !important;
+  color: #fff !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+
+body[data-theme='darkFox'] .alert-title {
+  background: #222 !important;
+  color: #fff !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+
+body[data-theme='darkFox'] .alert-title {
+  color: #1a1a1a !important;
+}
+
+body[data-theme='darkFox'] .alert-message {
+  color: #1a1a1a !important;
+  background: #ffffff !important;
+}
+
+body[data-theme='darkFox'] .alert-radio-label {
+  color: #1a1a1a !important;
+}
+
+body[data-theme='darkFox'] .alert-radio-inner {
+  border-color: #1a1a1a !important;
+}
+
+body[data-theme='darkFox'] .alert-radio-checked .alert-radio-inner {
+  border-color: #1a1a1a !important;
+}
+
+body[data-theme='darkFox'] .alert-radio-checked .alert-radio-label {
+  color: #1a1a1a !important;
+}
+
+body[data-theme='darkFox'] .alert-button {
+  color: #fff !important;
+  background: #222 !important;
+  border-radius: 4px !important;
+  margin: 0 4px !important;
+}
+
+body[data-theme='darkFox'] .alert-button.sc-ion-alert-md {
+  color: #fff !important;
+  background: #222 !important;
+}
+
+body[data-theme='darkFox'] .alert-radio {
+  --color-checked: #1a1a1a !important;
+}
+
+body[data-theme='darkFox'] .alert-button-group.sc-ion-alert-md {
+  background: transparent !important;
+}
+
+/* Corsac Fox theme - menu button and toolbar title white */
+body[data-theme='corsacFox'] ion-menu-button,
+body[data-theme='corsacFox'] ion-menu-button ion-icon,
+body[data-theme='corsacFox'] ion-title,
+body[data-theme='corsacFox'] .toolbar-title {
+  color: #ffffff !important;
+}
+
+/* Corsac Fox theme - sidebar icons dark */
+body[data-theme='corsacFox'] ion-menu ion-icon,
+body[data-theme='corsacFox'] .sidebar-icon {
+  color: #333333 !important;
+}
+
+.standard-note ion-icon,
+.standard-note .icon {
+  color: var(--notable-standard-icon-color) !important;
+}
+
+.standard-folder {
+  background-color: var(--notable-folder-bg) !important;
+  color: var(--notable-standard-folder-text) !important;
+}
+
+.standard-folder ion-icon,
+.standard-folder .icon {
+  color: var(--notable-standard-icon-color) !important;
+}
+
+/* Modal text color */
+body:not([data-theme='darkFox']) .ion-modal,
+body:not([data-theme='darkFox']) .ion-modal ion-content,
+body:not([data-theme='darkFox']) .ion-modal ion-header,
+body:not([data-theme='darkFox']) .ion-modal ion-toolbar,
+body:not([data-theme='darkFox']) .ion-modal ion-title,
+body:not([data-theme='darkFox']) .ion-modal ion-label,
+body:not([data-theme='darkFox']) .ion-modal ion-item,
+body:not([data-theme='darkFox']) .ion-modal ion-text,
+body:not([data-theme='darkFox']) .ion-modal ion-input,
+body:not([data-theme='darkFox']) .ion-modal ion-textarea,
+body:not([data-theme='darkFox']) .ion-modal ion-select,
+body:not([data-theme='darkFox']) .ion-modal ion-button:not([color]) {
+  --color: #000000 !important;
+  color: #000000 !important;
+}
+
+/* Dark theme modal text */
+body[data-theme='darkFox'] .ion-modal,
+body[data-theme='darkFox'] .ion-modal ion-content,
+body[data-theme='darkFox'] .ion-modal ion-header,
+body[data-theme='darkFox'] .ion-modal ion-toolbar,
+body[data-theme='darkFox'] .ion-modal ion-title,
+body[data-theme='darkFox'] .ion-modal ion-label,
+body[data-theme='darkFox'] .ion-modal ion-item,
+body[data-theme='darkFox'] .ion-modal ion-text,
+body[data-theme='darkFox'] .ion-modal ion-input,
+body[data-theme='darkFox'] .ion-modal ion-textarea,
+body[data-theme='darkFox'] .ion-modal ion-select,
+body[data-theme='darkFox'] .ion-modal ion-button:not([color]) {
+  --color: #f3f4f6 !important;
+  color: #f3f4f6 !important;
+}
+
+/* Ensure theme modal title is dark in corsac theme */
+body[data-theme='corsacFox'] .theme-modal-title {
+  color: #1a1a1a !important;
+}
+
+body[data-theme='corsacFox'] .theme-modal-title ion-icon {
+  color: #1a1a1a !important;
+}
+
+/* Apply black text to notes and folders when using standard option with non-dark themes */
+[data-theme]:not([data-theme="darkFox"]) .standard-note,
+[data-theme]:not([data-theme="darkFox"]) .standard-folder {
+  --text-color: #000000;
+  --icon-color: #000000;
+}
+
+/* Move Notes Between Folders label in silver fox theme */
+body[data-theme='darkFox'] .move-notes-label {
+  color: #ffffff !important;
+  --color: #ffffff !important;
+}
+
