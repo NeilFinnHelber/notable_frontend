@@ -15,8 +15,12 @@ export default defineConfig(({ mode }) => {
   const isGitHubPages = process.env.NODE_ENV === 'production' && 
     process.env.GITHUB_ACTIONS === 'true';
   
+  // For GitHub Pages, we'll use the repository name as the base path
+  // For the custom domain, we'll use root
+  const base = isGitHubPages ? '/notable_frontend/' : '/';
+  
   return {
-    base: isGitHubPages ? '/notable_frontend/' : '/',
+    base,
     plugins: [
       react(),
       legacy()
@@ -47,14 +51,28 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
+      emptyOutDir: true,
+      sourcemap: false,
       rollupOptions: {
         output: {
+          // Ensure consistent hashing for better caching
+          assetFileNames: 'assets/[name].[hash].[ext]',
+          chunkFileNames: 'assets/[name].[hash].js',
+          entryFileNames: 'assets/[name].[hash].js',
           manualChunks: {
             react: ['react', 'react-dom', 'react-router-dom'],
             ionic: ['@ionic/react', '@ionic/react-router'],
+            vendor: ['@auth0/auth0-react'],
           },
         },
       },
+      // Ensure the build includes all necessary files
+      manifest: true,
+      // Minify the output
+      minify: 'terser',
+      // Enable gzip compression
+      reportCompressedSize: true,
+      // Source maps are disabled for production
     },
     define: {
       // Provide a fallback for process.env
