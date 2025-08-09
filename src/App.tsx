@@ -640,11 +640,75 @@ const renderTextWithHashtags = (text: string, parentColor?: string, isStandardCa
 };
 
 const AppContent: React.FC = () => {
-  const { isAuthenticated, isLoading, user, logout } = useAuth0();
+  const { isAuthenticated, isLoading, user, logout, loginWithRedirect, getAccessTokenSilently } = useAuth0();
   const [userConfig, setUserConfig] = useState<any>(null);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [presentToast] = useIonToast();
+  
+  // Handle authentication state changes
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        if (!isLoading && !isAuthenticated) {
+          // If not authenticated, redirect to login
+          await loginWithRedirect({
+            appState: { returnTo: window.location.pathname }
+          });
+        } else if (isAuthenticated && user?.sub) {
+          // If authenticated, get access token
+          try {
+            const token = await getAccessTokenSilently();
+            console.log('Successfully obtained access token');
+            // Store token in memory or context for API calls
+          } catch (tokenError) {
+            console.error('Error getting access token:', tokenError);
+            setAuthError('Failed to authenticate. Please try again.');
+          }
+        }
+      } catch (error) {
+        console.error('Authentication error:', error);
+        setAuthError('An error occurred during authentication');
+      }
+    };
+    
+    initializeAuth();
+  }, [isLoading, isAuthenticated, loginWithRedirect, getAccessTokenSilently]);
+  
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="ion-padding ion-text-center">
+        <IonSpinner name="crescent" />
+        <p>Loading...</p>
+      </div>
+    );
+  }
+  
+  // Show error state
+  if (authError) {
+    return (
+      <div className="ion-padding ion-text-center">
+        <h2>Authentication Error</h2>
+        <p>{authError}</p>
+        <IonButton onClick={() => window.location.reload()}>Retry</IonButton>
+      </div>
+    );
+  }
+  
+  // Show login prompt if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="ion-padding ion-text-center">
+        <h2>Welcome to Notable</h2>
+        <p>Please log in to continue</p>
+        <IonButton onClick={() => loginWithRedirect()}>
+          Log In
+        </IonButton>
+      </div>
+    );
+  }
   
   // Function to refresh shared folders
   const refreshSharedFolders = async (userId: string) => {
@@ -1575,14 +1639,23 @@ const AppContent: React.FC = () => {
 // Wrapper component that provides Auth0 context
 const App: React.FC = () => {
   return (
-    <Auth0Provider
+    <Auth0Provider 
       domain={authConfig.domain}
       clientId={authConfig.clientId}
       authorizationParams={{
-        redirect_uri: 'https://app.wolf0fdev.me',
-        scope: "openid profile email"
+        ...authConfig.authorizationParams,
       }}
-      cacheLocation="localstorage"
+      useRefreshTokens={authConfig.useRefreshTokens}
+      cacheLocation={authConfig.cacheLocation}
+      useRefreshTokensFallback={authConfig.useRefreshTokensFallback}
+      onRedirectCallback={(appState) => {
+        // Handle redirect after login
+        console.log('Redirecting to:', appState?.returnTo || window.location.pathname);
+      }}
+      // Enable debug logs in development
+      enableDebugLogs={authConfig.enableDebugLogs}
+      // Add custom HTTP options
+      httpTimeout={authConfig.httpTimeout}
     >
       <AppContent />
     </Auth0Provider>
