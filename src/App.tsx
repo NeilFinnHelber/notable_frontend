@@ -1,14 +1,8 @@
 import { Redirect, Route } from "react-router-dom";
-import { 
-  IonApp, IonRouterOutlet, setupIonicReact, IonSplitPane, IonMenu, IonHeader, 
-  IonToolbar, IonTitle, IonContent, IonList, IonItem, IonIcon, IonMenuToggle, 
-  IonAvatar, IonText, IonButton, IonSpinner, IonLabel, IonThumbnail, IonImg, 
-  IonModal, IonButtons, IonInput, useIonToast 
-} from "@ionic/react";
-import * as React from "react";
+import { IonApp, IonRouterOutlet, setupIonicReact, IonSplitPane, IonMenu, IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem, IonIcon, IonMenuToggle, IonAvatar, IonText, IonButton, IonSpinner, IonLabel, IonThumbnail, IonImg, IonModal, IonButtons, IonInput, useIonToast } from "@ionic/react";
+import React from "react";
 import { IonReactRouter } from "@ionic/react-router";
-import { Auth0Provider, useAuth0, Auth0ProviderOptions } from "@auth0/auth0-react";
-import { PlaybackProvider } from './components/PlaybackContext';
+import { Auth0Provider, useAuth0 } from "@auth0/auth0-react";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Menu from "./pages/Menu";
@@ -27,6 +21,7 @@ declare global {
     unlockFolderRequest?: { folderId: string; intent: 'view' | 'edit' };
   }
 }
+import { PlaybackProvider } from './components/PlaybackContext';
 import MiniPlayer from './components/MiniPlayer';
 import { getUserConfig, updateUserTheme, getSharedFolders } from './pages/apiService';
 import { ThemeModal } from './components/ThemeModal';
@@ -644,124 +639,12 @@ const renderTextWithHashtags = (text: string, parentColor?: string, isStandardCa
   );
 };
 
-// Move all hooks to the top level of the component
 const AppContent: React.FC = () => {
-  // Refs for values that don't trigger re-renders
-  const authInitialized = useRef(false);
-  
-  // Authentication state
-  const { 
-    isAuthenticated, 
-    isLoading, 
-    user, 
-    logout, 
-    loginWithRedirect, 
-    getAccessTokenSilently,
-    error: auth0Error
-  } = useAuth0();
-  
-  // Handle Auth0 errors
-  useEffect(() => {
-    if (auth0Error) {
-      console.error('Auth0 Error:', auth0Error);
-      setAuthError(auth0Error.message || 'Authentication error occurred');
-    }
-  }, [auth0Error]);
-  
-  // State hooks - all at the top level
+  const { isAuthenticated, isLoading, user, logout } = useAuth0();
   const [userConfig, setUserConfig] = useState<any>(null);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(false);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [presentToast] = useIonToast();
-  
-  // Handle authentication state changes
-  useEffect(() => {
-    const initializeAuth = async () => {
-      // Prevent multiple initializations
-      if (authInitialized.current) return;
-      
-      try {
-        if (isLoading) return; // Wait for auth0 to finish loading
-        
-        if (!isAuthenticated) {
-          // If not authenticated, redirect to login
-          authInitialized.current = true;
-          await loginWithRedirect({
-            appState: { returnTo: window.location.pathname }
-          });
-          return;
-        }
-        
-        if (isAuthenticated && user?.sub) {
-          // If authenticated, get access token
-          try {
-            const token = await getAccessTokenSilently();
-            console.log('Successfully obtained access token');
-            // Store token in memory or context for API calls
-            authInitialized.current = true;
-            setIsInitialized(true);
-          } catch (tokenError) {
-            console.error('Error getting access token:', tokenError);
-            setAuthError('Failed to authenticate. Please try again.');
-          }
-        }
-      } catch (error) {
-        console.error('Authentication error:', error);
-        setAuthError('An error occurred during authentication');
-        authInitialized.current = true; // Prevent infinite loops
-      }
-    };
-    
-    initializeAuth();
-    
-    // Cleanup function
-    return () => {
-      authInitialized.current = false;
-    };
-  }, [isLoading, isAuthenticated, loginWithRedirect, getAccessTokenSilently, user?.sub]);
-  
-  // Render loading state
-  const renderLoading = () => (
-    <div className="ion-padding ion-text-center">
-      <IonSpinner name="crescent" />
-      <p>Loading...</p>
-    </div>
-  );
-  
-  // Render error state
-  const renderError = () => (
-    <div className="ion-padding ion-text-center">
-      <h2>Authentication Error</h2>
-      <p>{authError}</p>
-      <IonButton onClick={() => window.location.reload()}>Retry</IonButton>
-    </div>
-  );
-  
-  // Render login prompt
-  const renderLoginPrompt = () => (
-    <div className="ion-padding ion-text-center">
-      <h2>Welcome to Notable</h2>
-      <p>Please log in to continue</p>
-      <IonButton onClick={() => loginWithRedirect()}>
-        Log In
-      </IonButton>
-    </div>
-  );
-  
-  // Determine what to render based on state
-  if (isLoading || !isInitialized) {
-    return renderLoading();
-  }
-  
-  if (authError) {
-    return renderError();
-  }
-  
-  if (!isAuthenticated) {
-    return renderLoginPrompt();
-  }
   
   // Function to refresh shared folders
   const refreshSharedFolders = async (userId: string) => {
@@ -1689,97 +1572,23 @@ const AppContent: React.FC = () => {
   );
 };
 
-// Error Boundary component to catch errors in the component tree
-interface ErrorBoundaryProps {
-  children: React.ReactNode;
-}
-
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error?: Error;
-}
-
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    // Update state so the next render will show the fallback UI
-    console.error('Error caught by boundary:', error);
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Log the error to an error reporting service
-    console.error('Error caught by boundary:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      // Render fallback UI
-      return (
-        <div className="ion-padding ion-text-center">
-          <h2>Something went wrong</h2>
-          <p>An unexpected error occurred. Please refresh the page to continue.</p>
-          <IonButton onClick={() => window.location.reload()}>Refresh Page</IonButton>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
 // Wrapper component that provides Auth0 context
 const App: React.FC = () => {
-  const [isInitialized, setIsInitialized] = React.useState(false);
-  
-  // Initialize any global state or configurations
-  React.useEffect(() => {
-    const initializeApp = async () => {
-      try {
-        // Add any global initialization code here
-        console.log('Initializing app...');
-        setIsInitialized(true);
-      } catch (error) {
-        console.error('Error initializing app:', error);
-      }
-    };
-    
-    initializeApp();
-  }, []);
-  
-  if (!isInitialized) {
-    return (
-      <div className="ion-padding ion-text-center">
-        <IonSpinner name="crescent" />
-        <p>Initializing app...</p>
-      </div>
-    );
-  }
-  
   return (
-    <ErrorBoundary>
-      <Auth0Provider 
-        domain={authConfig.domain}
-        clientId={authConfig.clientId}
-        authorizationParams={{
-          ...authConfig.authorizationParams,
-        }}
-        useRefreshTokens={authConfig.useRefreshTokens}
-        cacheLocation={authConfig.cacheLocation}
-        useRefreshTokensFallback={authConfig.useRefreshTokensFallback}
-        onRedirectCallback={(appState) => {
-          // Handle redirect after login
-          console.log('Redirecting to:', appState?.returnTo || window.location.pathname);
-        }}
-      >
-        <AppContent />
-      </Auth0Provider>
-    </ErrorBoundary>
+    <Auth0Provider
+      domain={authConfig.domain}
+      clientId={authConfig.clientId}
+      authorizationParams={{
+        redirect_uri: window.location.origin,
+        scope: "openid profile email"
+      }}
+      cacheLocation="localstorage"
+    >
+      <AppContent />
+    </Auth0Provider>
   );
 };
 
 export default App;
+
+

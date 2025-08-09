@@ -1,8 +1,0 @@
-# Handle client-side routing - redirect all requests to index.html
-/*    /index.html    200
-
-# Handle all other routes
-/app/*    /index.html    200
-
-# Handle root path
-/    /index.html    200
