@@ -29,22 +29,34 @@ export default defineConfig(({ mode }) => {
       host: true, // Listen on all network interfaces
       port: 3000, // Default port, change if needed
       strictPort: true,
+      open: true, // Open browser on server start
       hmr: {
         protocol: 'ws',
         host: 'localhost',
         port: 3000
       },
+      // Ensure proper handling of SPA routes
+      fs: {
+        strict: false // Allow serving files outside of root
+      },
+      // Handle SPA fallback
       historyApiFallback: {
         index: '/index.html',
         disableDotRule: true,
-        htmlAcceptHeaders: ['text/html', 'application/xhtml+xml']
+        htmlAcceptHeaders: ['text/html', 'application/xhtml+xml'],
+        rewrites: [
+          { from: /^\/app/, to: '/index.html' },
+          { from: /./, to: '/index.html' }
+        ]
       },
+      // Proxy configuration for development
       proxy: {
         // Proxy API requests if needed
         '/api': {
-          target: 'https://your-api-endpoint.com',
+          target: 'http://localhost:5000', // Update this to your API URL
           changeOrigin: true,
           secure: false,
+          rewrite: (path) => path.replace(/^\/api/, '')
         }
       }
     },
