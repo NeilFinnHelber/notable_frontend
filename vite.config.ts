@@ -28,6 +28,14 @@ export default defineConfig(({ mode }) => {
     // Add server configuration
     server: {
       host: true, // Listen on all network interfaces
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3001', // Your backend server URL
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/api/, '')
+        }
+      },
       port: 3000, // Default port, change if needed
       strictPort: true,
       hmr: {
