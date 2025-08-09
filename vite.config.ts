@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   
   return {
+    base: process.env.NODE_ENV === 'production' ? '/notable_frontend/' : '/',
     plugins: [
       react(),
       legacy()
@@ -32,7 +33,19 @@ export default defineConfig(({ mode }) => {
       hmr: {
         protocol: 'ws',
         host: 'localhost'
-      }
+      },
+      // Enable client-side routing in development
+      historyApiFallback: true
+    },
+    // Build configuration
+    build: {
+      outDir: 'dist',
+      // Ensure the build includes a fallback for HTML5 history API
+      rollupOptions: {
+        output: {
+          manualChunks: undefined,
+        },
+      },
     }
   }
 })
