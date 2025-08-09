@@ -10,8 +10,13 @@ export default defineConfig(({ mode }) => {
   // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, process.cwd(), '')
   
+  // For GitHub Pages, we need to set the base URL to the repository name
+  // For custom domain, we can use '/' as the base
+  const isGitHubPages = process.env.NODE_ENV === 'production' && 
+    process.env.GITHUB_ACTIONS === 'true';
+  
   return {
-    base: '/',  // Using root path for custom domain
+    base: isGitHubPages ? '/notable_frontend/' : '/',
     plugins: [
       react(),
       legacy()
