@@ -4,6 +4,8 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "predeploy": "ionic build --prod",
+    "deploy": "gh-pages -d dist",
     "dev": "set NODE_ENV=development && vite",
     "start": "node server.js",
     "build": "tsc && vite build",
@@ -13,10 +15,7 @@
     "lint": "eslint"
   },
   "homepage": "https://app.wolf0fdev.me/",
-"scripts": {
-  "predeploy": "ionic build --prod",
-  "deploy": "gh-pages -d dist"
-},
+
   "dependencies": {
     "@auth0/auth0-react": "^2.3.0",
     "@capacitor-community/electron": "^5.0.1",
