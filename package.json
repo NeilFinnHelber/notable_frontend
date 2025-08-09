@@ -12,6 +12,11 @@
     "test.unit": "vitest",
     "lint": "eslint"
   },
+  "homepage": "https://app.wolf0fdev.me/",
+"scripts": {
+  "predeploy": "ionic build --prod",
+  "deploy": "gh-pages -d dist"
+},
   "dependencies": {
     "@auth0/auth0-react": "^2.3.0",
     "@capacitor-community/electron": "^5.0.1",
@@ -75,6 +80,7 @@
     "eslint-plugin-react": "^7.32.2",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.19",
+    "gh-pages": "^6.3.0",
     "globals": "^15.15.0",
     "jsdom": "^22.1.0",
     "nodemon": "^3.1.9",
