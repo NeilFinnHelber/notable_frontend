@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Notable</title>
+    <script>
+      // Handle SPA routing for GitHub Pages
+      (function() {
+        const { pathname } = window.location;
+        const base = '/notable_frontend';
+        
+        // Redirect to the correct base URL if needed
+        if (pathname.startsWith(base + '/')) {
+          return; // Already at the correct base URL
+        }
+        
+        // Redirect to the base URL with the current path
+        const newPath = base + pathname + window.location.search + window.location.hash;
+        window.history.replaceState({}, '', newPath);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

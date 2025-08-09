@@ -16,6 +16,41 @@ export default defineConfig(({ mode }) => {
       react(),
       legacy()
     ],
+    server: {
+      host: true, // Listen on all network interfaces
+      port: 3000, // Default port, change if needed
+      strictPort: true,
+      hmr: {
+        protocol: 'ws',
+        host: 'localhost',
+        port: 3000
+      },
+      historyApiFallback: {
+        index: '/index.html',
+        disableDotRule: true,
+        htmlAcceptHeaders: ['text/html', 'application/xhtml+xml']
+      },
+      proxy: {
+        // Proxy API requests if needed
+        '/api': {
+          target: 'https://your-api-endpoint.com',
+          changeOrigin: true,
+          secure: false,
+        }
+      }
+    },
+    build: {
+      outDir: 'dist',
+      assetsDir: 'assets',
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            react: ['react', 'react-dom', 'react-router-dom'],
+            ionic: ['@ionic/react', '@ionic/react-router'],
+          },
+        },
+      },
+    },
     define: {
       // Provide a fallback for process.env
       'process.env': {}
@@ -24,16 +59,6 @@ export default defineConfig(({ mode }) => {
       globals: true,
       environment: 'jsdom',
       setupFiles: './src/setupTests.ts',
-    },
-    // Add server configuration
-    server: {
-      host: true, // Listen on all network interfaces
-      port: 3000, // Default port, change if needed
-      strictPort: true,
-      hmr: {
-        protocol: 'ws',
-        host: 'localhost'
-      }
     }
   }
 })
