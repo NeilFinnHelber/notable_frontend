@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosInstance } from 'axios';
+import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { API_CONFIG } from '../api.config';
 
 // Create an Axios instance with default config
@@ -11,12 +11,28 @@ const api: AxiosInstance = axios.create({
   withCredentials: true, // Important for sending cookies with cross-origin requests
 });
 
+// Create a function to get the access token
+let _getAccessTokenSilently: (() => Promise<string>) = async () => '';
+
+export const setAuth0TokenGetter = (getTokenFn: () => Promise<string>) => {
+  _getAccessTokenSilently = getTokenFn;
+};
+
 // Request interceptor for adding auth token if available
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('auth_token'); // Update this based on your auth implementation
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+  async (config: InternalAxiosRequestConfig) => {
+    try {
+      const token = await _getAccessTokenSilently();
+      // Only set the Authorization header if we have a non-empty token
+      if (token && token.trim() !== '') {
+        config.headers.Authorization = `Bearer ${token}`;
+      } else {
+        // Remove the Authorization header if token is empty
+        delete config.headers.Authorization;
+      }
+    } catch (error) {
+      console.error('Error getting access token:', error);
+      // Continue without the token if there's an error
     }
     return config;
   },

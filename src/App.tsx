@@ -26,6 +26,7 @@ import MiniPlayer from './components/MiniPlayer';
 import { getUserConfig, updateUserTheme, getSharedFolders } from './pages/apiService';
 import { ThemeModal } from './components/ThemeModal';
 import { ThemeName, themes, applyTheme } from './themeColors';
+import { setAuth0TokenGetter } from './utils/api';
 
 // API URL constant
 const apiUrl = 'https://localhost:7281/notes/api/v1/';
@@ -1573,6 +1574,35 @@ const AppContent: React.FC = () => {
 };
 
 // Wrapper component that provides Auth0 context
+// Component to set up the Auth0 token getter
+const Auth0Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { getAccessTokenSilently } = useAuth0();
+  
+  // Set up the token getter for the API utility
+  React.useEffect(() => {
+    // Create a function that will be called by the API utility
+    const tokenGetter = async () => {
+      try {
+        const token = await getAccessTokenSilently();
+        return token;
+      } catch (error) {
+        console.error('Error getting access token:', error);
+        throw error;
+      }
+    };
+    
+    // Set the token getter in the API utility
+    setAuth0TokenGetter(tokenGetter);
+    
+    // Cleanup function - set a no-op function
+    return () => {
+      setAuth0TokenGetter(async () => '');
+    };
+  }, [getAccessTokenSilently]);
+  
+  return <>{children}</>;
+};
+
 const App: React.FC = () => {
   return (
     <Auth0Provider
@@ -1580,11 +1610,15 @@ const App: React.FC = () => {
       clientId={authConfig.clientId}
       authorizationParams={{
         redirect_uri: window.location.origin,
-        scope: "openid profile email"
+        audience: authConfig.audience,
+        scope: "openid profile email offline_access"
       }}
       cacheLocation="localstorage"
+      useRefreshTokens={true}
     >
-      <AppContent />
+      <Auth0Wrapper>
+        <AppContent />
+      </Auth0Wrapper>
     </Auth0Provider>
   );
 };
